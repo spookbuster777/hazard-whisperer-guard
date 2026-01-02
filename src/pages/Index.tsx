@@ -21,6 +21,7 @@ const Index = () => {
   const [mainTab, setMainTab] = useState("evaluasi");
   const [evaluasiSubTab, setEvaluasiSubTab] = useState("reports");
   const [duplicateSubTab, setDuplicateSubTab] = useState("list");
+  const [queueSubTab, setQueueSubTab] = useState("ai-labeling");
 
   // Filter only post-AI reports (AI_SELESAI)
   const evaluatorReports = useMemo(() => 
@@ -102,7 +103,7 @@ const Index = () => {
                 <h1 className="text-xl font-bold text-foreground">Evaluator Dashboard</h1>
               </div>
 
-              {/* Main Tabs: Evaluasi & AI Labeling */}
+              {/* Main Tabs: Evaluasi & Queue */}
               <Tabs value={mainTab} onValueChange={setMainTab}>
                 <TabsList className="bg-muted/50 mb-6">
                   <TabsTrigger value="evaluasi" className="gap-2 px-6">
@@ -112,18 +113,11 @@ const Index = () => {
                       {evaluatorReports.length}
                     </span>
                   </TabsTrigger>
-                  <TabsTrigger value="ai-labeling" className="gap-2 px-6">
+                  <TabsTrigger value="queue" className="gap-2 px-6">
                     <Bot className="w-4 h-4" />
-                    AI Labeling
+                    Queue
                     <span className="ml-1 px-1.5 py-0.5 bg-warning/20 text-warning rounded text-xs font-medium">
-                      {queueReports.length}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger value="ai-duplicate" className="gap-2 px-6">
-                    <Layers className="w-4 h-4" />
-                    AI Duplicate
-                    <span className="ml-1 px-1.5 py-0.5 bg-info/20 text-info rounded text-xs font-medium">
-                      {aiDuplicateQueueReports.length}
+                      {queueReports.length + aiDuplicateQueueReports.length}
                     </span>
                   </TabsTrigger>
                 </TabsList>
@@ -194,18 +188,43 @@ const Index = () => {
                   </Tabs>
                 </TabsContent>
 
-                {/* AI Labeling Tab Content */}
-                <TabsContent value="ai-labeling" className="space-y-6">
-                  {/* AI Pipeline Summary */}
-                  <AIPipelineSummary stats={aiPipelineStats} />
+                {/* Queue Tab Content with Sub-tabs */}
+                <TabsContent value="queue" className="space-y-6">
+                  <Tabs value={queueSubTab} onValueChange={setQueueSubTab}>
+                    <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
+                      <TabsTrigger 
+                        value="ai-labeling" 
+                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                      >
+                        <Bot className="w-4 h-4" />
+                        AI Labeling
+                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-warning/20 data-[state=active]:text-warning rounded-full text-xs font-semibold">
+                          {queueReports.length}
+                        </span>
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="ai-duplicate" 
+                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                      >
+                        <Layers className="w-4 h-4" />
+                        AI Duplicate
+                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-info/20 data-[state=active]:text-info rounded-full text-xs font-semibold">
+                          {aiDuplicateQueueReports.length}
+                        </span>
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* AI Queue */}
-                  <AIQueueTable reports={queueReports} />
-                </TabsContent>
+                    <TabsContent value="ai-labeling" className="mt-4 space-y-6">
+                      {/* AI Pipeline Summary */}
+                      <AIPipelineSummary stats={aiPipelineStats} />
+                      {/* AI Queue */}
+                      <AIQueueTable reports={queueReports} />
+                    </TabsContent>
 
-                {/* AI Duplicate Tab Content */}
-                <TabsContent value="ai-duplicate" className="space-y-6">
-                  <AIDuplicateQueueTable reports={aiDuplicateQueueReports} />
+                    <TabsContent value="ai-duplicate" className="mt-4 space-y-6">
+                      <AIDuplicateQueueTable reports={aiDuplicateQueueReports} />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
               </Tabs>
             </div>
