@@ -1,13 +1,14 @@
 import { useState } from "react";
 import DuplicateClusterCard from "./DuplicateClusterCard";
-import ClusterPanel from "./ClusterPanel";
+import DuplicateClusterDetailPanel from "./DuplicateClusterDetailPanel";
 import { ClusterInfo, HazardReport } from "@/data/hazardReports";
 
 interface DuplicateClusterGridProps {
   clusters: ClusterInfo[];
+  onViewReport?: (report: HazardReport) => void;
 }
 
-const DuplicateClusterGrid = ({ clusters }: DuplicateClusterGridProps) => {
+const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridProps) => {
   const [viewingCluster, setViewingCluster] = useState<ClusterInfo | null>(null);
 
   const handleViewDetail = (cluster: ClusterInfo) => {
@@ -18,9 +19,9 @@ const DuplicateClusterGrid = ({ clusters }: DuplicateClusterGridProps) => {
     setViewingCluster(null);
   };
 
-  const handleSelectReport = (reportId: string) => {
-    // For now, just close the panel - could be extended to navigate to report detail
+  const handleViewReport = (report: HazardReport) => {
     setViewingCluster(null);
+    onViewReport?.(report);
   };
 
   return (
@@ -36,10 +37,10 @@ const DuplicateClusterGrid = ({ clusters }: DuplicateClusterGridProps) => {
       </div>
 
       {viewingCluster && (
-        <ClusterPanel
+        <DuplicateClusterDetailPanel
           cluster={viewingCluster}
           onClose={handleClosePanel}
-          onSelectReport={handleSelectReport}
+          onViewReport={handleViewReport}
         />
       )}
     </>
