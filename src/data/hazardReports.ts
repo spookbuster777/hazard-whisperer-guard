@@ -706,6 +706,7 @@ export const dashboardStats = {
 
 // AI Duplicate Detection Queue
 export const aiDuplicateQueueReports: HazardReport[] = [
+  // PROCESSING - Analyzing Semantic
   {
     id: "HR-2025-336-23920",
     tanggal: "11 Des 2025",
@@ -733,6 +734,7 @@ export const aiDuplicateQueueReports: HazardReport[] = [
       semantic: 0.72
     }
   },
+  // QUEUED - Waiting
   {
     id: "HR-2025-336-23921",
     tanggal: "11 Des 2025",
@@ -751,15 +753,9 @@ export const aiDuplicateQueueReports: HazardReport[] = [
     rolePelapor: "Safety Officer",
     aiStatus: "AI_SELESAI",
     timestamp: "2025-12-11T08:15:00Z",
-    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE",
-    duplicateScores: {
-      overall: 0.82,
-      ruleBased: 0.90,
-      geo: 0.95,
-      lexical: 0.70,
-      semantic: 0.75
-    }
+    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE"
   },
+  // QUEUED - Waiting
   {
     id: "HR-2025-336-23922",
     tanggal: "11 Des 2025",
@@ -778,15 +774,9 @@ export const aiDuplicateQueueReports: HazardReport[] = [
     rolePelapor: "Road Inspector",
     aiStatus: "AI_SELESAI",
     timestamp: "2025-12-11T09:00:00Z",
-    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE",
-    duplicateScores: {
-      overall: 0.65,
-      ruleBased: 0.70,
-      geo: 0.80,
-      lexical: 0.55,
-      semantic: 0.60
-    }
+    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE"
   },
+  // COMPLETED - High Score (Duplikat Kuat)
   {
     id: "HR-2025-336-23923",
     tanggal: "10 Des 2025",
@@ -805,15 +795,16 @@ export const aiDuplicateQueueReports: HazardReport[] = [
     rolePelapor: "Teknisi Senior",
     aiStatus: "AI_SELESAI",
     timestamp: "2025-12-10T10:30:00Z",
-    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE",
+    duplicateStatus: "DUPLICATE_SELESAI",
     duplicateScores: {
-      overall: 0.45,
-      ruleBased: 0.50,
-      geo: 0.40,
-      lexical: 0.45,
-      semantic: 0.48
+      overall: 0.88,
+      ruleBased: 0.90,
+      geo: 0.85,
+      lexical: 0.88,
+      semantic: 0.90
     }
   },
+  // COMPLETED - Medium Score (Mirip Perlu Review)
   {
     id: "HR-2025-336-23924",
     tanggal: "10 Des 2025",
@@ -832,15 +823,16 @@ export const aiDuplicateQueueReports: HazardReport[] = [
     rolePelapor: "Gate Keeper",
     aiStatus: "AI_SELESAI",
     timestamp: "2025-12-10T11:00:00Z",
-    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE",
+    duplicateStatus: "DUPLICATE_SELESAI",
     duplicateScores: {
-      overall: 0.88,
-      ruleBased: 0.95,
-      geo: 0.92,
-      lexical: 0.80,
-      semantic: 0.85
+      overall: 0.78,
+      ruleBased: 0.85,
+      geo: 0.82,
+      lexical: 0.70,
+      semantic: 0.75
     }
   },
+  // COMPLETED - Very High Score (Duplikat Kuat)
   {
     id: "HR-2025-336-23925",
     tanggal: "10 Des 2025",
@@ -859,13 +851,125 @@ export const aiDuplicateQueueReports: HazardReport[] = [
     rolePelapor: "Security",
     aiStatus: "AI_SELESAI",
     timestamp: "2025-12-10T11:30:00Z",
-    duplicateStatus: "MENUNGGU_ANALISIS_DUPLICATE",
+    duplicateStatus: "DUPLICATE_SELESAI",
     duplicateScores: {
       overall: 0.91,
       ruleBased: 0.95,
       geo: 0.88,
       lexical: 0.90,
       semantic: 0.92
+    }
+  },
+  // COMPLETED - Low Score (Tidak Duplikat)
+  {
+    id: "HR-2025-336-23926",
+    tanggal: "09 Des 2025",
+    pelapor: "Dewi Sartika",
+    lokasi: "(B 70) Area Jetty",
+    lokasiKode: "B70",
+    jenisHazard: "Elektrikal",
+    subJenisHazard: "Kabel terkelupas",
+    cluster: null,
+    site: "MARINE",
+    lokasiArea: "Jetty",
+    detailLokasi: "Jetty Utama",
+    deskripsiTemuan: "Ditemukan kabel listrik terkelupas di area jetty.",
+    quickAction: "Electrical Check",
+    tanggalPembuatan: "09 Des 2025",
+    rolePelapor: "Electrical Engineer",
+    aiStatus: "AI_SELESAI",
+    timestamp: "2025-12-09T14:00:00Z",
+    duplicateStatus: "DUPLICATE_SELESAI",
+    duplicateScores: {
+      overall: 0.35,
+      ruleBased: 0.40,
+      geo: 0.30,
+      lexical: 0.35,
+      semantic: 0.38
+    }
+  },
+  // PROCESSING - Analyzing Lexical
+  {
+    id: "HR-2025-336-23927",
+    tanggal: "11 Des 2025",
+    pelapor: "Hendra Saputra",
+    lokasi: "(B 66) Area Crusher",
+    lokasiKode: "B66",
+    jenisHazard: "Mesin",
+    subJenisHazard: "Pelindung mesin",
+    cluster: null,
+    site: "PROCESSING PLANT",
+    lokasiArea: "Crusher",
+    detailLokasi: "Primary Crusher",
+    deskripsiTemuan: "Pelindung mesin crusher tidak terpasang dengan benar.",
+    quickAction: "Machine Check",
+    tanggalPembuatan: "11 Des 2025",
+    rolePelapor: "Operator",
+    aiStatus: "AI_SELESAI",
+    timestamp: "2025-12-11T07:30:00Z",
+    duplicateStatus: "SEDANG_ANALISIS_DUPLICATE",
+    duplicateScores: {
+      overall: 0,
+      ruleBased: 0.60,
+      geo: 0.55,
+      lexical: 0.58,
+      semantic: 0
+    }
+  },
+  // PROCESSING - Analyzing Geo
+  {
+    id: "HR-2025-336-23928",
+    tanggal: "11 Des 2025",
+    pelapor: "Irwan Setiawan",
+    lokasi: "(B 68) Stockpile",
+    lokasiKode: "B68",
+    jenisHazard: "Material",
+    subJenisHazard: "Tumpahan material",
+    cluster: null,
+    site: "PROCESSING PLANT",
+    lokasiArea: "Stockpile",
+    detailLokasi: "Stockpile A",
+    deskripsiTemuan: "Material batu bara tumpah di jalan akses stockpile.",
+    quickAction: "Cleanup",
+    tanggalPembuatan: "11 Des 2025",
+    rolePelapor: "Loader Operator",
+    aiStatus: "AI_SELESAI",
+    timestamp: "2025-12-11T06:45:00Z",
+    duplicateStatus: "SEDANG_ANALISIS_DUPLICATE",
+    duplicateScores: {
+      overall: 0,
+      ruleBased: 0.70,
+      geo: 0.65,
+      lexical: 0,
+      semantic: 0
+    }
+  },
+  // COMPLETED - Low Similarity
+  {
+    id: "HR-2025-336-23929",
+    tanggal: "09 Des 2025",
+    pelapor: "Joko Widodo",
+    lokasi: "(B 71) Camp Area",
+    lokasiKode: "B71",
+    jenisHazard: "Kebersihan",
+    subJenisHazard: "Sampah berserakan",
+    cluster: null,
+    site: "CAMP AREA",
+    lokasiArea: "Mess Hall",
+    detailLokasi: "Ruang Makan",
+    deskripsiTemuan: "Sampah organik berserakan di sekitar tempat makan.",
+    quickAction: "Cleaning",
+    tanggalPembuatan: "09 Des 2025",
+    rolePelapor: "Camp Manager",
+    aiStatus: "AI_SELESAI",
+    timestamp: "2025-12-09T12:00:00Z",
+    duplicateStatus: "DUPLICATE_SELESAI",
+    duplicateScores: {
+      overall: 0.72,
+      ruleBased: 0.75,
+      geo: 0.70,
+      lexical: 0.72,
+      semantic: 0.71
     }
   }
 ];
