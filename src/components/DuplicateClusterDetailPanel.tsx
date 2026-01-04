@@ -1,10 +1,252 @@
 import { useState } from "react";
-import { X, Star, Clock, User, MapPin, FileText, Image, Brain, ArrowLeft, Calendar, Building2 } from "lucide-react";
+import { X, Star, Clock, User, MapPin, FileText, Image, Brain, ArrowLeft, Calendar, Building2, ChevronDown, ChevronUp, Globe, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ClusterInfo, hazardReports, HazardReport } from "@/data/hazardReports";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+// Analysis Section Component with expandable Geo & Lexical
+const AnalysisSection = ({ 
+  report, 
+  geoScore, 
+  lexicalScore, 
+  semanticScore 
+}: { 
+  report: HazardReport; 
+  geoScore: number; 
+  lexicalScore: number; 
+  semanticScore: number;
+}) => {
+  const [geoOpen, setGeoOpen] = useState(false);
+  const [lexicalOpen, setLexicalOpen] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      {/* Semantic Analysis - Always visible */}
+      <div className="p-3 rounded-lg bg-card border border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs ml-auto">
+            {semanticScore}%
+          </Badge>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Visual Signals */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+              <span>✨</span> Sinyal Visual Terdeteksi
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                objek teridentifikasi
+              </Badge>
+              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                kondisi terdeteksi
+              </Badge>
+              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                konteks visual
+              </Badge>
+            </div>
+          </div>
+
+          {/* Interpretation */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+              <span>⊙</span> Interpretasi Makna
+            </p>
+            <p className="text-sm italic text-muted-foreground">
+              Analisis semantik menunjukkan kemiripan visual dengan laporan utama berdasarkan konteks gambar dan deskripsi temuan.
+            </p>
+          </div>
+
+          {/* Similarity Scores Summary */}
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">Skor Kemiripan</p>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
+                Geo: {geoScore}%
+              </Badge>
+              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                Lexical: {lexicalScore}%
+              </Badge>
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                Semantic: {semanticScore}%
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Geo Analysis - Expandable */}
+      <Collapsible open={geoOpen} onOpenChange={setGeoOpen}>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-success" />
+                <span className="text-sm font-semibold text-foreground">Analisis Geo (Lokasi)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
+                  {geoScore}%
+                </Badge>
+                {geoOpen ? (
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-3 bg-success/5 border-t border-border space-y-3">
+              {/* Location Match */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Kecocokan Lokasi
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Site</p>
+                    <p className="font-medium text-foreground">{report.site}</p>
+                  </div>
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Area</p>
+                    <p className="font-medium text-foreground">{report.lokasiArea || report.lokasi}</p>
+                  </div>
+                  <div className="p-2 rounded bg-card border border-border col-span-2">
+                    <p className="text-muted-foreground">Detail Lokasi</p>
+                    <p className="font-medium text-foreground">{report.detailLokasi}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Radius Analysis */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>📍</span> Analisis Radius
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
+                    Dalam radius 500m
+                  </Badge>
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                    Zona kerja sama
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Geo Interpretation */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>⊙</span> Interpretasi
+                </p>
+                <p className="text-sm italic text-muted-foreground">
+                  Lokasi laporan berada dalam radius yang sama dengan laporan utama. Site dan area menunjukkan kecocokan tinggi.
+                </p>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
+      {/* Lexical Analysis - Expandable */}
+      <Collapsible open={lexicalOpen} onOpenChange={setLexicalOpen}>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-warning" />
+                <span className="text-sm font-semibold text-foreground">Analisis Lexical (Kata)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                  {lexicalScore}%
+                </Badge>
+                {lexicalOpen ? (
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-3 bg-warning/5 border-t border-border space-y-3">
+              {/* Keyword Match */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>🔤</span> Kata Kunci Terdeteksi
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {report.jenisHazard && (
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                      {report.jenisHazard}
+                    </Badge>
+                  )}
+                  {report.subJenisHazard && (
+                    <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                      {report.subJenisHazard}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                    {report.quickAction}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Text Similarity */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>📝</span> Kecocokan Teks
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Ketidaksesuaian</p>
+                    <p className="font-medium text-foreground text-xs">{report.ketidaksesuaian?.slice(0, 30)}...</p>
+                  </div>
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Sub Kategori</p>
+                    <p className="font-medium text-foreground text-xs">{report.subKetidaksesuaian?.slice(0, 25)}...</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* N-gram Analysis */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>🔗</span> Pola N-gram
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                    2-gram match: 65%
+                  </Badge>
+                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
+                    3-gram match: 48%
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Lexical Interpretation */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <span>⊙</span> Interpretasi
+                </p>
+                <p className="text-sm italic text-muted-foreground">
+                  Analisis kata menunjukkan kesamaan pada kategori hazard, kata kunci deskripsi, dan pola teks yang digunakan.
+                </p>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    </div>
+  );
+};
 
 interface DuplicateClusterDetailPanelProps {
   cluster: ClusterInfo;
@@ -125,55 +367,12 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
 
         {/* Semantic Analysis */}
         {showAnalysis && (
-          <div className="p-3 rounded-lg bg-card border border-border">
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
-            </div>
-            
-            <div className="space-y-3">
-              {/* Visual Signals */}
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <span>✨</span> Sinyal Visual Terdeteksi
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
-                    objek teridentifikasi
-                  </Badge>
-                  <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-border text-xs">
-                    kondisi terdeteksi
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Interpretation */}
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <span>⊙</span> Interpretasi Makna
-                </p>
-                <p className="text-sm italic text-muted-foreground">
-                  Analisis semantik menunjukkan kemiripan visual dengan laporan utama berdasarkan konteks gambar dan deskripsi temuan.
-                </p>
-              </div>
-
-              {/* Similarity Scores */}
-              <div className="pt-2 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">Skor Kemiripan</p>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-xs">
-                    Geo: {reportGeo}%
-                  </Badge>
-                  <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
-                    Lexical: {reportLex}%
-                  </Badge>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
-                    Semantic: {reportSem}%
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AnalysisSection 
+            report={report} 
+            geoScore={reportGeo} 
+            lexicalScore={reportLex} 
+            semanticScore={reportSem} 
+          />
         )}
       </div>
     );
