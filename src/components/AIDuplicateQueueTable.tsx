@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { Layers, Search, Clock, Loader2, Filter, ChevronLeft, ChevronRight, RotateCcw, Info, ArrowUpDown, Check, Minus, Eye, MapPin, Type, Brain, Play, Pause, RefreshCw, ArrowUp, AlertTriangle, CheckCircle2, Hourglass } from "lucide-react";
+import { Layers, Search, Clock, Loader2, Filter, ChevronLeft, ChevronRight, RotateCcw, Info, ArrowUpDown, Check, MapPin, Type, Brain, Play, Pause, RefreshCw, ArrowUp, AlertTriangle, CheckCircle2, MoreHorizontal, Eye, Hourglass } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { HazardReport, DuplicateStatus, siteOptions, lokasiOptions } from "@/data/hazardReports";
 import { toast } from "sonner";
 
@@ -14,112 +15,100 @@ interface AIDuplicateQueueTableProps {
   onViewCluster?: (report: HazardReport) => void;
 }
 
-// Global AI State Model
-type GlobalAIState = 'queued' | 'processing' | 'aggregating' | 'completed' | 'failed';
+// Simplified Status Labels
+type StatusLabel = 'Menunggu' | 'Diproses' | 'Selesai' | 'Gagal';
 
 // AI Processing States for each analysis stage
 type AnalysisStageStatus = 'queued' | 'processing' | 'done';
-
-// AI Analysis Status Labels
-type AIAnalysisStatusLabel = 
-  | 'Queued' 
-  | 'Analyzing Location' 
-  | 'Analyzing Text Similarity' 
-  | 'Analyzing Semantic Similarity' 
-  | 'Finalizing Result' 
-  | 'Completed'
-  | 'Failed';
 
 // Derive AI analysis stages from duplicate status and scores
 const getAnalysisStages = (report: HazardReport): {
   geo: AnalysisStageStatus;
   lexical: AnalysisStageStatus;
   semantic: AnalysisStageStatus;
-  aiStatus: AIAnalysisStatusLabel;
-  globalState: GlobalAIState;
+  statusLabel: StatusLabel;
+  globalState: 'queued' | 'processing' | 'aggregating' | 'completed' | 'failed';
 } => {
   const status = report.duplicateStatus;
   const scores = report.duplicateScores;
   
-  // Failed state - check if marked as failed (simulated via id ending)
+  // Failed state
   if (report.id.endsWith('-FAIL')) {
     return {
-      geo: 'done' as AnalysisStageStatus,
-      lexical: 'queued' as AnalysisStageStatus,
-      semantic: 'queued' as AnalysisStageStatus,
-      aiStatus: 'Failed' as AIAnalysisStatusLabel,
-      globalState: 'failed' as GlobalAIState
+      geo: 'done',
+      lexical: 'queued',
+      semantic: 'queued',
+      statusLabel: 'Gagal',
+      globalState: 'failed'
     };
   }
   
-  // If completed, all stages are done
+  // Completed
   if (status === "DUPLICATE_SELESAI" && scores) {
     return {
-      geo: 'done' as AnalysisStageStatus,
-      lexical: 'done' as AnalysisStageStatus,
-      semantic: 'done' as AnalysisStageStatus,
-      aiStatus: 'Completed' as AIAnalysisStatusLabel,
-      globalState: 'completed' as GlobalAIState
+      geo: 'done',
+      lexical: 'done',
+      semantic: 'done',
+      statusLabel: 'Selesai',
+      globalState: 'completed'
     };
   }
   
-  // If currently processing
+  // Processing
   if (status === "SEDANG_ANALISIS_DUPLICATE") {
-    // Simulate different stages based on available scores
-    if (scores?.semantic !== undefined && scores?.lexical !== undefined && scores?.geo !== undefined) {
-      // All scores exist - aggregating/finalizing
+    if (scores?.semantic !== undefined && scores?.lexical !== undefined && scores?.geo !== undefined && scores.semantic > 0 && scores.lexical > 0) {
       return {
-        geo: 'done' as AnalysisStageStatus,
-        lexical: 'done' as AnalysisStageStatus,
-        semantic: 'done' as AnalysisStageStatus,
-        aiStatus: 'Finalizing Result' as AIAnalysisStatusLabel,
-        globalState: 'aggregating' as GlobalAIState
+        geo: 'done',
+        lexical: 'done',
+        semantic: 'done',
+        statusLabel: 'Diproses',
+        globalState: 'aggregating'
       };
     }
-    if (scores?.semantic !== undefined) {
+    if (scores?.semantic !== undefined && scores.semantic > 0) {
       return {
-        geo: 'done' as AnalysisStageStatus,
-        lexical: 'done' as AnalysisStageStatus,
-        semantic: 'processing' as AnalysisStageStatus,
-        aiStatus: 'Analyzing Semantic Similarity' as AIAnalysisStatusLabel,
-        globalState: 'processing' as GlobalAIState
+        geo: 'done',
+        lexical: 'done',
+        semantic: 'processing',
+        statusLabel: 'Diproses',
+        globalState: 'processing'
       };
     }
-    if (scores?.lexical !== undefined) {
+    if (scores?.lexical !== undefined && scores.lexical > 0) {
       return {
-        geo: 'done' as AnalysisStageStatus,
-        lexical: 'processing' as AnalysisStageStatus,
-        semantic: 'queued' as AnalysisStageStatus,
-        aiStatus: 'Analyzing Text Similarity' as AIAnalysisStatusLabel,
-        globalState: 'processing' as GlobalAIState
+        geo: 'done',
+        lexical: 'processing',
+        semantic: 'queued',
+        statusLabel: 'Diproses',
+        globalState: 'processing'
       };
     }
-    if (scores?.geo !== undefined) {
+    if (scores?.geo !== undefined && scores.geo > 0) {
       return {
-        geo: 'processing' as AnalysisStageStatus,
-        lexical: 'queued' as AnalysisStageStatus,
-        semantic: 'queued' as AnalysisStageStatus,
-        aiStatus: 'Analyzing Location' as AIAnalysisStatusLabel,
-        globalState: 'processing' as GlobalAIState
+        geo: 'processing',
+        lexical: 'queued',
+        semantic: 'queued',
+        statusLabel: 'Diproses',
+        globalState: 'processing'
       };
     }
-    // Processing started but no scores yet - analyzing geo
+    // Processing started but no scores yet
     return {
-      geo: 'processing' as AnalysisStageStatus,
-      lexical: 'queued' as AnalysisStageStatus,
-      semantic: 'queued' as AnalysisStageStatus,
-      aiStatus: 'Analyzing Location' as AIAnalysisStatusLabel,
-      globalState: 'processing' as GlobalAIState
+      geo: 'processing',
+      lexical: 'queued',
+      semantic: 'queued',
+      statusLabel: 'Diproses',
+      globalState: 'processing'
     };
   }
   
-  // Queued - nothing started
+  // Queued
   return {
-    geo: 'queued' as AnalysisStageStatus,
-    lexical: 'queued' as AnalysisStageStatus,
-    semantic: 'queued' as AnalysisStageStatus,
-    aiStatus: 'Queued' as AIAnalysisStatusLabel,
-    globalState: 'queued' as GlobalAIState
+    geo: 'queued',
+    lexical: 'queued',
+    semantic: 'queued',
+    statusLabel: 'Menunggu',
+    globalState: 'queued'
   };
 };
 
@@ -167,53 +156,54 @@ const StageIcon = ({ status, label }: { status: AnalysisStageStatus; label: stri
   );
 };
 
-// AI Analysis Status Badge - Primary UX Anchor
-const AIAnalysisStatusBadge = ({ status, globalState }: { status: AIAnalysisStatusLabel; globalState: GlobalAIState }) => {
+// Unified Status Badge
+const StatusBadge = ({ statusLabel }: { statusLabel: StatusLabel }) => {
   const getStyle = () => {
-    switch (globalState) {
-      case 'completed':
+    switch (statusLabel) {
+      case 'Selesai':
         return "bg-success/10 text-success border-success/30";
-      case 'failed':
+      case 'Gagal':
         return "bg-destructive/10 text-destructive border-destructive/30";
-      case 'aggregating':
-        return "bg-warning/10 text-warning border-warning/30";
-      case 'processing':
+      case 'Diproses':
         return "bg-info/10 text-info border-info/30";
-      case 'queued':
+      case 'Menunggu':
       default:
         return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const getIcon = () => {
-    switch (globalState) {
-      case 'completed':
+    switch (statusLabel) {
+      case 'Selesai':
         return <CheckCircle2 className="w-3 h-3" />;
-      case 'failed':
+      case 'Gagal':
         return <AlertTriangle className="w-3 h-3" />;
-      case 'aggregating':
-        return <Hourglass className="w-3 h-3 animate-pulse" />;
-      case 'processing':
+      case 'Diproses':
         return <Loader2 className="w-3 h-3 animate-spin" />;
-      case 'queued':
+      case 'Menunggu':
       default:
-        return <Clock className="w-3 h-3" />;
+        return <Hourglass className="w-3 h-3" />;
     }
   };
 
   return (
     <Badge variant="outline" className={`gap-1 text-[10px] whitespace-nowrap ${getStyle()}`}>
       {getIcon()}
-      {status}
+      {statusLabel}
     </Badge>
   );
 };
 
-// Duplicate Score Display (only when completed)
+// Duplicate Score Display with better styling for processing state
 const DuplicateScoreDisplay = ({ score, isCompleted }: { score?: number; isCompleted: boolean }) => {
   if (!isCompleted || score === undefined) {
     return (
-      <span className="text-xs text-muted-foreground">— (Processing)</span>
+      <div className="flex items-center gap-1.5">
+        <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-full w-1/3 bg-muted-foreground/20 animate-pulse rounded-full" />
+        </div>
+        <span className="text-[10px] text-muted-foreground italic">Processing...</span>
+      </div>
     );
   }
 
@@ -221,194 +211,175 @@ const DuplicateScoreDisplay = ({ score, isCompleted }: { score?: number; isCompl
   
   const getScoreInfo = () => {
     if (percentage >= 85) {
-      return { 
-        label: "Duplikat Kuat", 
-        color: "text-destructive",
-        bgColor: "bg-destructive",
-        emoji: "🔴"
-      };
+      return { label: "Duplikat Kuat", color: "text-destructive", bgColor: "bg-destructive" };
     }
     if (percentage >= 75) {
-      return { 
-        label: "Mirip (Perlu Review)", 
-        color: "text-warning",
-        bgColor: "bg-warning",
-        emoji: "🟠"
-      };
+      return { label: "Mirip", color: "text-warning", bgColor: "bg-warning" };
     }
     if (percentage >= 70) {
-      return { 
-        label: "Low Similarity", 
-        color: "text-yellow-500",
-        bgColor: "bg-yellow-500",
-        emoji: "🟡"
-      };
+      return { label: "Low", color: "text-yellow-500", bgColor: "bg-yellow-500" };
     }
-    return { 
-      label: "Tidak Duplikat", 
-      color: "text-success",
-      bgColor: "bg-success",
-      emoji: "🟢"
-    };
+    return { label: "Unik", color: "text-success", bgColor: "bg-success" };
   };
 
-  const { label, color, bgColor, emoji } = getScoreInfo();
+  const { color, bgColor } = getScoreInfo();
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex items-center gap-2 cursor-help">
-          <div className="w-14 h-2 bg-muted rounded-full overflow-hidden">
-            <div 
-              className={`h-full ${bgColor}`}
-              style={{ width: `${percentage}%` }}
-            />
+          <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className={`h-full ${bgColor}`} style={{ width: `${percentage}%` }} />
           </div>
-          <span className={`text-xs font-semibold ${color}`}>
-            {percentage.toFixed(0)}%
-          </span>
+          <span className={`text-xs font-semibold ${color}`}>{percentage.toFixed(0)}%</span>
         </div>
       </TooltipTrigger>
-      <TooltipContent className="max-w-[280px]">
-        <p className="text-xs font-medium mb-1">{emoji} {label}</p>
-        <p className="text-xs text-muted-foreground">
-          Duplicate Score dihitung setelah seluruh analisis AI selesai. Nilai ≥75% dianggap berpotensi duplikat.
-        </p>
+      <TooltipContent className="max-w-[220px]">
+        <p className="text-xs">Score ≥75% = berpotensi duplikat</p>
       </TooltipContent>
     </Tooltip>
   );
 };
 
-// Queue Action Buttons Component
-const QueueActions = ({ 
+// Duplicate Status Badge
+const DuplicateStatusBadge = ({ score, isCompleted }: { score?: number; isCompleted: boolean }) => {
+  if (!isCompleted || score === undefined) {
+    return <span className="text-[10px] text-muted-foreground">—</span>;
+  }
+
+  const percentage = score * 100;
+  
+  if (percentage >= 85) {
+    return <Badge variant="outline" className="text-[10px] bg-destructive/10 text-destructive border-destructive/30">Duplikat Kuat</Badge>;
+  }
+  if (percentage >= 75) {
+    return <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/30">Perlu Review</Badge>;
+  }
+  if (percentage >= 70) {
+    return <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30">Low Similarity</Badge>;
+  }
+  return <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">Tidak Duplikat</Badge>;
+};
+
+// Click-based Queue Actions Dropdown
+const QueueActionsDropdown = ({ 
   globalState, 
   reportId,
-  onStart,
-  onStop,
-  onRetry,
-  onPrioritize
+  showViewCluster,
+  onViewCluster
 }: { 
-  globalState: GlobalAIState; 
+  globalState: 'queued' | 'processing' | 'aggregating' | 'completed' | 'failed';
   reportId: string;
-  onStart?: (id: string) => void;
-  onStop?: (id: string) => void;
-  onRetry?: (id: string) => void;
-  onPrioritize?: (id: string) => void;
+  showViewCluster?: boolean;
+  onViewCluster?: () => void;
 }) => {
-  const handleStart = () => {
-    onStart?.(reportId);
-    toast.success("Memulai proses analisis", { description: `Laporan ${reportId}` });
-  };
-
-  const handleStop = () => {
-    onStop?.(reportId);
-    toast.info("Menghentikan proses", { description: `Laporan ${reportId}` });
-  };
-
-  const handleRetry = () => {
-    onRetry?.(reportId);
-    toast.success("Mengulangi analisis", { description: `Laporan ${reportId}` });
-  };
-
-  const handlePrioritize = () => {
-    onPrioritize?.(reportId);
-    toast.success("Diprioritaskan", { description: `Laporan ${reportId} dipindahkan ke antrian teratas` });
+  const handleAction = (action: string) => {
+    const messages: Record<string, { title: string; desc: string }> = {
+      start: { title: "Memulai proses", desc: `Laporan ${reportId}` },
+      stop: { title: "Menghentikan proses", desc: `Laporan ${reportId}` },
+      retry: { title: "Mengulangi analisis", desc: `Laporan ${reportId}` },
+      prioritize: { title: "Diprioritaskan", desc: `Laporan ${reportId} ke antrian teratas` }
+    };
+    const msg = messages[action];
+    if (msg) toast.success(msg.title, { description: msg.desc });
   };
 
   return (
-    <div className="flex items-center gap-1">
-      {/* Start - only for Queued */}
-      {globalState === 'queued' && (
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-success hover:text-success hover:bg-success/10"
-                onClick={handleStart}
-              >
-                <Play className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent><p className="text-xs">Start Processing</p></TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
-                onClick={handlePrioritize}
-              >
-                <ArrowUp className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent><p className="text-xs">Prioritize Queue</p></TooltipContent>
-          </Tooltip>
-        </>
-      )}
-
-      {/* Stop - only during Processing or Aggregating */}
-      {(globalState === 'processing' || globalState === 'aggregating') && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-warning hover:text-warning hover:bg-warning/10"
-              onClick={handleStop}
-            >
-              <Pause className="w-3.5 h-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent><p className="text-xs">Stop Processing</p></TooltipContent>
-        </Tooltip>
-      )}
-
-      {/* Retry - only for Failed or Completed */}
-      {(globalState === 'failed' || globalState === 'completed') && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-info hover:text-info hover:bg-info/10"
-              onClick={handleRetry}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent><p className="text-xs">Retry Analysis</p></TooltipContent>
-        </Tooltip>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        {globalState === 'queued' && (
+          <>
+            <DropdownMenuItem onClick={() => handleAction('start')}>
+              <Play className="w-3.5 h-3.5 mr-2 text-success" />
+              Start Processing
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleAction('prioritize')}>
+              <ArrowUp className="w-3.5 h-3.5 mr-2" />
+              Prioritize
+            </DropdownMenuItem>
+          </>
+        )}
+        {(globalState === 'processing' || globalState === 'aggregating') && (
+          <DropdownMenuItem onClick={() => handleAction('stop')}>
+            <Pause className="w-3.5 h-3.5 mr-2 text-warning" />
+            Stop Processing
+          </DropdownMenuItem>
+        )}
+        {(globalState === 'failed' || globalState === 'completed') && (
+          <DropdownMenuItem onClick={() => handleAction('retry')}>
+            <RefreshCw className="w-3.5 h-3.5 mr-2 text-info" />
+            Retry Analysis
+          </DropdownMenuItem>
+        )}
+        {showViewCluster && (
+          <DropdownMenuItem onClick={onViewCluster}>
+            <Eye className="w-3.5 h-3.5 mr-2 text-info" />
+            Lihat Cluster
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
-const getDuplicateStatusBadge = (status?: DuplicateStatus) => {
-  switch (status) {
-    case "MENUNGGU_ANALISIS_DUPLICATE":
-      return (
-        <Badge variant="outline" className="bg-muted text-muted-foreground border-border gap-1 text-[10px] whitespace-nowrap">
-          Menunggu
-        </Badge>
-      );
-    case "SEDANG_ANALISIS_DUPLICATE":
-      return (
-        <Badge variant="outline" className="bg-info/10 text-info border-info/30 gap-1 text-[10px] whitespace-nowrap">
-          Diproses
-        </Badge>
-      );
-    case "DUPLICATE_SELESAI":
-      return (
-        <Badge variant="outline" className="bg-success/10 text-success border-success/30 gap-1 text-[10px] whitespace-nowrap">
-          Selesai
-        </Badge>
-      );
-    default:
-      return null;
-  }
+// Analytics Summary Card
+const AnalyticsSummary = ({ 
+  queued, 
+  processing, 
+  completed, 
+  failed 
+}: { 
+  queued: number; 
+  processing: number; 
+  completed: number; 
+  failed: number; 
+}) => {
+  const total = queued + processing + completed + failed;
+  
+  return (
+    <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="bg-muted/30 rounded-lg p-3 border border-border">
+        <div className="flex items-center gap-2 mb-1">
+          <Hourglass className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Menunggu</span>
+        </div>
+        <p className="text-xl font-semibold text-foreground">{queued}</p>
+        <p className="text-[10px] text-muted-foreground">{total > 0 ? ((queued/total)*100).toFixed(0) : 0}% dari total</p>
+      </div>
+      
+      <div className="bg-info/5 rounded-lg p-3 border border-info/20">
+        <div className="flex items-center gap-2 mb-1">
+          <Loader2 className="w-4 h-4 text-info animate-spin" />
+          <span className="text-xs text-info">Diproses</span>
+        </div>
+        <p className="text-xl font-semibold text-info">{processing}</p>
+        <p className="text-[10px] text-muted-foreground">{total > 0 ? ((processing/total)*100).toFixed(0) : 0}% dari total</p>
+      </div>
+      
+      <div className="bg-success/5 rounded-lg p-3 border border-success/20">
+        <div className="flex items-center gap-2 mb-1">
+          <CheckCircle2 className="w-4 h-4 text-success" />
+          <span className="text-xs text-success">Selesai</span>
+        </div>
+        <p className="text-xl font-semibold text-success">{completed}</p>
+        <p className="text-[10px] text-muted-foreground">{total > 0 ? ((completed/total)*100).toFixed(0) : 0}% dari total</p>
+      </div>
+      
+      <div className="bg-destructive/5 rounded-lg p-3 border border-destructive/20">
+        <div className="flex items-center gap-2 mb-1">
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+          <span className="text-xs text-destructive">Gagal</span>
+        </div>
+        <p className="text-xl font-semibold text-destructive">{failed}</p>
+        <p className="text-[10px] text-muted-foreground">{total > 0 ? ((failed/total)*100).toFixed(0) : 0}% dari total</p>
+      </div>
+    </div>
+  );
 };
 
 const formatTimestamp = (timestamp?: string) => {
@@ -430,11 +401,9 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOrder, setSortOrder] = useState<"timestamp" | "priority">("timestamp");
   
-  // Location filters
   const [siteFilter, setSiteFilter] = useState<string>("all");
   const [lokasiAreaFilter, setLokasiAreaFilter] = useState<string>("all");
 
-  // Get lokasi options based on selected site
   const availableLokasiOptions = useMemo(() => {
     if (siteFilter === "all") {
       return [...new Set(Object.values(lokasiOptions).flat())];
@@ -442,15 +411,9 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
     return lokasiOptions[siteFilter] || [];
   }, [siteFilter]);
 
-  // Reset dependent filters when parent changes
   const handleSiteChange = (value: string) => {
     setSiteFilter(value);
     setLokasiAreaFilter("all");
-    setCurrentPage(1);
-  };
-
-  const handleLokasiAreaChange = (value: string) => {
-    setLokasiAreaFilter(value);
     setCurrentPage(1);
   };
 
@@ -463,37 +426,29 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
     setCurrentPage(1);
   };
 
-  const hasActiveFilters = 
-    searchTerm !== "" || 
-    aiStatusFilter !== "all" ||
-    siteFilter !== "all" ||
-    lokasiAreaFilter !== "all";
+  const hasActiveFilters = searchTerm !== "" || aiStatusFilter !== "all" || siteFilter !== "all" || lokasiAreaFilter !== "all";
 
   const filteredAndSortedReports = useMemo(() => {
     const filtered = reports.filter(report => {
       const matchesSearch = searchTerm === "" || 
         report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.pelapor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.lokasi.toLowerCase().includes(searchTerm.toLowerCase());
+        report.pelapor.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesSite = siteFilter === "all" || report.site === siteFilter;
       const matchesLokasiArea = lokasiAreaFilter === "all" || report.lokasiArea === lokasiAreaFilter;
       
-      // AI Status filter based on global state
       const stages = getAnalysisStages(report);
       const matchesAiStatus = aiStatusFilter === "all" || 
-        (aiStatusFilter === "Queued" && stages.globalState === "queued") ||
-        (aiStatusFilter === "Processing" && (stages.globalState === "processing" || stages.globalState === "aggregating")) ||
-        (aiStatusFilter === "Completed" && stages.globalState === "completed") ||
-        (aiStatusFilter === "Failed" && stages.globalState === "failed");
+        (aiStatusFilter === "Menunggu" && stages.globalState === "queued") ||
+        (aiStatusFilter === "Diproses" && (stages.globalState === "processing" || stages.globalState === "aggregating")) ||
+        (aiStatusFilter === "Selesai" && stages.globalState === "completed") ||
+        (aiStatusFilter === "Gagal" && stages.globalState === "failed");
       
       return matchesSearch && matchesSite && matchesLokasiArea && matchesAiStatus;
     });
 
-    // Sort based on selected order
     return filtered.sort((a, b) => {
       if (sortOrder === "priority") {
-        // Processing first, then queued, then completed/failed
         const stateOrder = { processing: 0, aggregating: 0, queued: 1, completed: 2, failed: 3 };
         const stateA = getAnalysisStages(a).globalState;
         const stateB = getAnalysisStages(b).globalState;
@@ -501,14 +456,12 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
         if (orderDiff !== 0) return orderDiff;
       }
       
-      // Then sort by timestamp (newest first)
       const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
       const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
       return timeB - timeA;
     });
   }, [reports, searchTerm, aiStatusFilter, siteFilter, lokasiAreaFilter, sortOrder]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredAndSortedReports.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedReports = filteredAndSortedReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -521,28 +474,34 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
 
   return (
     <div className="bg-card rounded-lg card-shadow animate-fade-in">
-      {/* Header Info */}
+      {/* Header */}
       <div className="p-4 border-b border-border bg-muted/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-info/10">
-              <Layers className="w-5 h-5 text-info" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Antrian AI Duplicate Detection</h2>
-              <p className="text-sm text-muted-foreground">
-                {queuedCount} queued · {processingCount} processing · {completedCount} completed
-                {failedCount > 0 && <span className="text-destructive"> · {failedCount} failed</span>}
-              </p>
-            </div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-2 rounded-lg bg-info/10">
+            <Layers className="w-5 h-5 text-info" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Antrian AI Duplicate Detection</h2>
+            <p className="text-sm text-muted-foreground">
+              {queuedCount} menunggu · {processingCount} diproses · {completedCount} selesai
+              {failedCount > 0 && <span className="text-destructive"> · {failedCount} gagal</span>}
+            </p>
           </div>
         </div>
+
+        {/* Analytics Summary */}
+        <AnalyticsSummary 
+          queued={queuedCount} 
+          processing={processingCount} 
+          completed={completedCount} 
+          failed={failedCount} 
+        />
         
         {/* Info Banner */}
-        <div className="mt-3 p-2.5 rounded-md bg-info/10 border border-info/20 flex items-start gap-2">
+        <div className="p-2.5 rounded-md bg-info/10 border border-info/20 flex items-start gap-2">
           <Info className="w-4 h-4 text-info shrink-0 mt-0.5" />
           <p className="text-xs text-info">
-            AI menganalisis kemiripan laporan menggunakan <strong>Geo</strong> (lokasi), <strong>Lexical</strong> (kata), dan <strong>Semantic</strong> (makna). Duplicate Score hanya ditampilkan setelah seluruh proses AI selesai.
+            AI menganalisis kemiripan menggunakan <strong>Geo</strong> (lokasi), <strong>Lexical</strong> (kata), <strong>Semantic</strong> (makna). Duplicate Score ditampilkan setelah proses selesai.
           </p>
         </div>
       </div>
@@ -556,10 +515,7 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
               placeholder="Cari ID / Pelapor..." 
               className="pl-9 bg-background h-8 text-sm"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
           </div>
           
@@ -577,7 +533,7 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
             </SelectContent>
           </Select>
 
-          <Select value={lokasiAreaFilter} onValueChange={handleLokasiAreaChange}>
+          <Select value={lokasiAreaFilter} onValueChange={(v) => { setLokasiAreaFilter(v); setCurrentPage(1); }}>
             <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="Lokasi" />
             </SelectTrigger>
@@ -590,20 +546,20 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
           </Select>
 
           <Select value={aiStatusFilter} onValueChange={(v) => { setAiStatusFilter(v); setCurrentPage(1); }}>
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue placeholder="AI Status" />
+            <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="Queued">Queued</SelectItem>
-              <SelectItem value="Processing">Processing</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Failed">Failed</SelectItem>
+              <SelectItem value="Menunggu">Menunggu</SelectItem>
+              <SelectItem value="Diproses">Diproses</SelectItem>
+              <SelectItem value="Selesai">Selesai</SelectItem>
+              <SelectItem value="Gagal">Gagal</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={sortOrder} onValueChange={(v: "timestamp" | "priority") => { setSortOrder(v); setCurrentPage(1); }}>
-            <SelectTrigger className="w-[110px] h-8 text-xs">
+            <SelectTrigger className="w-[100px] h-8 text-xs">
               <ArrowUpDown className="w-3 h-3 mr-1" />
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
@@ -614,12 +570,7 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
           </Select>
 
           {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={resetFilters}
-              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground">
               <RotateCcw className="w-3 h-3 mr-1" />
               Reset
             </Button>
@@ -637,52 +588,40 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Pelapor</th>
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Site</th>
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Lokasi</th>
-              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 whitespace-nowrap w-10">
+              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 w-10">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center justify-center cursor-help">
-                      <MapPin className="w-3.5 h-3.5" />
-                    </div>
+                    <div className="flex items-center justify-center cursor-help"><MapPin className="w-3.5 h-3.5" /></div>
                   </TooltipTrigger>
-                  <TooltipContent><p className="text-xs max-w-[180px]">Geo: Kedekatan lokasi geografis</p></TooltipContent>
+                  <TooltipContent><p className="text-xs">Geo: Kedekatan lokasi</p></TooltipContent>
                 </Tooltip>
               </th>
-              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 whitespace-nowrap w-10">
+              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 w-10">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center justify-center cursor-help">
-                      <Type className="w-3.5 h-3.5" />
-                    </div>
+                    <div className="flex items-center justify-center cursor-help"><Type className="w-3.5 h-3.5" /></div>
                   </TooltipTrigger>
-                  <TooltipContent><p className="text-xs max-w-[180px]">Lexical: Kesamaan kata/teks</p></TooltipContent>
+                  <TooltipContent><p className="text-xs">Lexical: Kesamaan kata</p></TooltipContent>
                 </Tooltip>
               </th>
-              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 whitespace-nowrap w-10">
+              <th className="text-center text-xs font-medium text-muted-foreground px-2 py-2.5 w-10">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center justify-center cursor-help">
-                      <Brain className="w-3.5 h-3.5" />
-                    </div>
+                    <div className="flex items-center justify-center cursor-help"><Brain className="w-3.5 h-3.5" /></div>
                   </TooltipTrigger>
-                  <TooltipContent><p className="text-xs max-w-[180px]">Semantic: Kesamaan makna (AI)</p></TooltipContent>
-                </Tooltip>
-              </th>
-              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">AI Analysis</th>
-              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">
-                <Tooltip>
-                  <TooltipTrigger className="cursor-help underline decoration-dotted">Duplicate Score</TooltipTrigger>
-                  <TooltipContent><p className="text-xs max-w-[220px]">Duplicate Score dihitung setelah seluruh analisis AI selesai. Nilai ≥75% dianggap berpotensi duplikat.</p></TooltipContent>
+                  <TooltipContent><p className="text-xs">Semantic: Kesamaan makna</p></TooltipContent>
                 </Tooltip>
               </th>
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Status</th>
-              <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Kontrol</th>
-              <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap w-16">Aksi</th>
+              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Duplicate Score</th>
+              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">Duplicate Status</th>
+              <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap w-12">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {paginatedReports.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={12} className="px-3 py-8 text-center text-muted-foreground">
                   Tidak ada laporan ditemukan
                 </td>
               </tr>
@@ -705,74 +644,36 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
                     <td className="px-3 py-2.5 text-foreground text-xs whitespace-nowrap">{report.site}</td>
                     <td className="px-3 py-2.5 text-foreground text-xs whitespace-nowrap">{report.lokasiArea || "-"}</td>
                     
-                    {/* Icon-only analysis stage columns - NO Rule-Based */}
                     <td className="px-2 py-2.5">
-                      <div className="flex justify-center">
-                        <StageIcon status={stages.geo} label="Geo" />
-                      </div>
+                      <div className="flex justify-center"><StageIcon status={stages.geo} label="Geo" /></div>
                     </td>
                     <td className="px-2 py-2.5">
-                      <div className="flex justify-center">
-                        <StageIcon status={stages.lexical} label="Lexical" />
-                      </div>
+                      <div className="flex justify-center"><StageIcon status={stages.lexical} label="Lexical" /></div>
                     </td>
                     <td className="px-2 py-2.5">
-                      <div className="flex justify-center">
-                        <StageIcon status={stages.semantic} label="Semantic" />
-                      </div>
+                      <div className="flex justify-center"><StageIcon status={stages.semantic} label="Semantic" /></div>
                     </td>
 
-                    {/* AI Analysis Status - Primary UX Anchor */}
                     <td className="px-3 py-2.5">
-                      <AIAnalysisStatusBadge status={stages.aiStatus} globalState={stages.globalState} />
+                      <StatusBadge statusLabel={stages.statusLabel} />
                     </td>
 
-                    {/* Duplicate Score - only shown when completed */}
                     <td className="px-3 py-2.5">
-                      <DuplicateScoreDisplay 
-                        score={report.duplicateScores?.overall} 
-                        isCompleted={isCompleted} 
-                      />
+                      <DuplicateScoreDisplay score={report.duplicateScores?.overall} isCompleted={isCompleted} />
                     </td>
 
-                    {/* Status */}
                     <td className="px-3 py-2.5">
-                      {getDuplicateStatusBadge(report.duplicateStatus)}
+                      <DuplicateStatusBadge score={report.duplicateScores?.overall} isCompleted={isCompleted} />
                     </td>
 
-                    {/* Queue Controls */}
                     <td className="px-3 py-2.5">
                       <div className="flex justify-center">
-                        <QueueActions 
+                        <QueueActionsDropdown 
                           globalState={stages.globalState}
                           reportId={report.id}
+                          showViewCluster={showViewCluster}
+                          onViewCluster={() => onViewCluster?.(report)}
                         />
-                      </div>
-                    </td>
-
-                    {/* View Cluster Action */}
-                    <td className="px-3 py-2.5">
-                      <div className="flex justify-center">
-                        {showViewCluster ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs text-info hover:text-info hover:bg-info/10"
-                                onClick={() => onViewCluster?.(report)}
-                              >
-                                <Eye className="w-3.5 h-3.5 mr-1" />
-                                Cluster
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Lihat Cluster Duplicate</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -783,7 +684,7 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
         </table>
       </div>
 
-      {/* Pagination Footer */}
+      {/* Pagination */}
       <div className="p-3 border-t border-border flex items-center justify-between bg-muted/10">
         <p className="text-xs text-muted-foreground">
           {filteredAndSortedReports.length > 0 ? startIndex + 1 : 0}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredAndSortedReports.length)} dari {filteredAndSortedReports.length}
@@ -799,9 +700,7 @@ const AIDuplicateQueueTable = ({ reports, onViewDetail, onViewCluster }: AIDupli
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-xs text-muted-foreground px-2">
-            {currentPage} / {totalPages || 1}
-          </span>
+          <span className="text-xs text-muted-foreground px-2">{currentPage} / {totalPages || 1}</span>
           <Button 
             variant="outline" 
             size="sm"
