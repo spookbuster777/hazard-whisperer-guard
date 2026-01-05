@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { Search, Filter, ChevronLeft, ChevronRight, RotateCcw, ArrowUpDown } from "lucide-react";
+import { Search, Filter, ChevronLeft, ChevronRight, RotateCcw, ArrowUpDown, Users, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HazardReport, siteOptions, lokasiOptions } from "@/data/hazardReports";
-import DuplicateReviewPanel from "./DuplicateReviewPanel";
+import { HazardReport, siteOptions, lokasiOptions, reportClusters } from "@/data/hazardReports";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import DuplicateHazardDetailPanel from "./DuplicateHazardDetailPanel";
 
 interface DuplicateHazardListProps {
   reports: HazardReport[];
@@ -23,6 +24,20 @@ const formatTimestamp = (timestamp?: string) => {
 };
 
 const ITEMS_PER_PAGE = 10;
+
+// Helper to get duplicate status label
+const getDuplicateStatusLabel = (score: number) => {
+  if (score >= 0.8) return { label: "Duplikat Kuat", className: "bg-destructive/10 text-destructive border-destructive/30" };
+  if (score >= 0.6) return { label: "Mirip", className: "bg-warning/10 text-warning border-warning/30" };
+  if (score >= 0.4) return { label: "Low Similarity", className: "bg-muted/50 text-muted-foreground border-border" };
+  return { label: "Tidak Duplikat", className: "bg-success/10 text-success border-success/30" };
+};
+
+// Helper to get cluster report count
+const getClusterReportCount = (clusterId: string | null, allReports: HazardReport[]) => {
+  if (!clusterId) return 0;
+  return allReports.filter(r => r.cluster === clusterId).length;
+};
 
 const DuplicateHazardList = ({ reports }: DuplicateHazardListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,7 +87,8 @@ const DuplicateHazardList = ({ reports }: DuplicateHazardListProps) => {
       const matchesSearch = searchTerm === "" || 
         report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         report.pelapor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.lokasi.toLowerCase().includes(searchTerm.toLowerCase());
+        report.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (report.ketidaksesuaian || "").toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesSite = siteFilter === "all" || report.site === siteFilter;
       const matchesLokasiArea = lokasiAreaFilter === "all" || report.lokasiArea === lokasiAreaFilter;
@@ -180,37 +196,97 @@ const DuplicateHazardList = ({ reports }: DuplicateHazardListProps) => {
                 <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Pelapor</th>
                 <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Site</th>
                 <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Lokasi</th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2">Deskripsi</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Ketidaksesuaian</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Sub Ketidaksesuaian</th>
+                <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Duplicate Score</th>
+                <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2 whitespace-nowrap">Cluster</th>
               </tr>
             </thead>
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                     Tidak ada laporan ditemukan
                   </td>
                 </tr>
               ) : (
-                paginatedReports.map((report) => (
-                  <tr 
-                    key={report.id} 
-                    className="border-b border-border hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => handleRowClick(report)}
-                  >
-                    <td className="px-3 py-2 font-medium text-primary text-xs whitespace-nowrap">{report.id}</td>
-                    <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">{formatTimestamp(report.timestamp)}</td>
-                    <td className="px-3 py-2 text-foreground text-xs whitespace-nowrap">{report.pelapor}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className="text-xs font-medium">
-                        {report.site}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2 text-foreground text-xs whitespace-nowrap">{report.lokasiArea || "-"}</td>
-                    <td className="px-3 py-2 text-muted-foreground text-xs max-w-[300px] truncate">
-                      {report.deskripsiTemuan || "-"}
-                    </td>
-                  </tr>
-                ))
+                paginatedReports.map((report) => {
+                  const overallScore = report.duplicateScores?.overall || 0;
+                  const scorePercent = Math.round(overallScore * 100);
+                  const statusInfo = getDuplicateStatusLabel(overallScore);
+                  const clusterCount = getClusterReportCount(report.cluster, reports);
+                  const cluster = reportClusters.find(c => c.id === report.cluster);
+
+                  return (
+                    <tr 
+                      key={report.id} 
+                      className="border-b border-border hover:bg-muted/20 transition-colors cursor-pointer"
+                      onClick={() => handleRowClick(report)}
+                    >
+                      <td className="px-3 py-2 font-medium text-primary text-xs whitespace-nowrap">{report.id}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs whitespace-nowrap">{formatTimestamp(report.timestamp)}</td>
+                      <td className="px-3 py-2 text-foreground text-xs whitespace-nowrap">{report.pelapor}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className="text-xs font-medium">
+                          {report.site}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-foreground text-xs whitespace-nowrap">{report.lokasiArea || "-"}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs max-w-[150px] truncate">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">{report.ketidaksesuaian?.slice(0, 25) || "-"}{(report.ketidaksesuaian?.length || 0) > 25 ? "..." : ""}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[300px]">
+                            <p className="text-xs">{report.ketidaksesuaian || "-"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs max-w-[150px] truncate">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">{report.subKetidaksesuaian?.slice(0, 25) || "-"}{(report.subKetidaksesuaian?.length || 0) > 25 ? "..." : ""}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[300px]">
+                            <p className="text-xs">{report.subKetidaksesuaian || "-"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs font-semibold text-foreground">{scorePercent}%</span>
+                          <Badge variant="outline" className={`text-[10px] ${statusInfo.className}`}>
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {report.cluster ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-col items-center gap-1 cursor-help">
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                                  <Layers className="w-3 h-3 mr-1" />
+                                  {report.cluster}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                  <Users className="w-3 h-3" />
+                                  {clusterCount} laporan
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-xs font-medium">{cluster?.name || report.cluster}</p>
+                              <p className="text-xs text-muted-foreground">{clusterCount} laporan dalam cluster</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -250,7 +326,7 @@ const DuplicateHazardList = ({ reports }: DuplicateHazardListProps) => {
 
       {/* Detail Panel */}
       {selectedReport && (
-        <DuplicateReviewPanel 
+        <DuplicateHazardDetailPanel 
           report={selectedReport}
           onClose={() => setSelectedReport(null)}
         />
