@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { X, Star, Clock, User, MapPin, FileText, Brain, Calendar, Building2, ChevronDown, ChevronUp, Globe, Type, Users, Image, ArrowLeft } from "lucide-react";
+import { X, Star, Clock, User, MapPin, FileText, Brain, Calendar, Building2, ChevronDown, ChevronUp, Globe, Type, Users, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { hazardReports, HazardReport, reportClusters } from "@/data/hazardReports";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Analysis Section Component with expandable Geo & Lexical
 const AnalysisSection = ({ 
@@ -176,9 +175,6 @@ interface DuplicateHazardDetailPanelProps {
 }
 
 const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPanelProps) => {
-  const [sortBy, setSortBy] = useState("semantic");
-  const [selectedOtherId, setSelectedOtherId] = useState<string | null>(null);
-  
   // Find cluster info
   const cluster = reportClusters.find(c => c.id === report.cluster);
   
@@ -189,28 +185,27 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
   
   // Get representative report (first in cluster)
   const representativeReport = clusterReports.length > 0 ? clusterReports[0] : null;
-  const isSelectedRepresentative = representativeReport?.id === report.id;
   
-  // Other reports in cluster (excluding selected)
-  const otherReports = clusterReports.filter(r => r.id !== report.id);
-  
-  // Selected other report for viewing
-  const selectedOtherReport = otherReports.find(r => r.id === selectedOtherId);
-  
-  // Sort other reports
-  const sortedOtherReports = [...otherReports].sort((a, b) => {
-    const aScore = a.duplicateScores?.[sortBy as keyof typeof a.duplicateScores] || 0;
-    const bScore = b.duplicateScores?.[sortBy as keyof typeof b.duplicateScores] || 0;
-    return (bScore as number) - (aScore as number);
-  });
+  // Other reports in cluster (excluding selected and representative)
+  const otherReportsCount = clusterReports.length - 2; // excluding selected and representative
   
   // Calculate scores
   const geoScore = report.duplicateScores ? Math.round(report.duplicateScores.geo * 100) : 0;
   const lexicalScore = report.duplicateScores ? Math.round(report.duplicateScores.lexical * 100) : 0;
   const semanticScore = report.duplicateScores ? Math.round(report.duplicateScores.semantic * 100) : 0;
 
-  // Report Card Component
-  const ReportCard = ({ r, isRepresentative = false, showAnalysis = false }: { r: HazardReport; isRepresentative?: boolean; showAnalysis?: boolean }) => {
+  // Report Card Component - Same structure for both selected and representative
+  const ReportCard = ({ 
+    r, 
+    isRepresentative = false, 
+    showAnalysis = false,
+    title = "Laporan"
+  }: { 
+    r: HazardReport; 
+    isRepresentative?: boolean; 
+    showAnalysis?: boolean;
+    title?: string;
+  }) => {
     const rGeo = r.duplicateScores ? Math.round(r.duplicateScores.geo * 100) : geoScore;
     const rLex = r.duplicateScores ? Math.round(r.duplicateScores.lexical * 100) : lexicalScore;
     const rSem = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : semanticScore;
@@ -229,9 +224,7 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-muted-foreground" />
-            <span className="font-semibold text-foreground">
-              {isRepresentative ? "Laporan Utama" : "Laporan Dipilih"}
-            </span>
+            <span className="font-semibold text-foreground">{title}</span>
           </div>
           <Badge variant="outline" className="font-mono text-xs">
             {r.id}
@@ -268,15 +261,23 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
           </div>
         </div>
 
-        {/* Cluster Info */}
-        {r.cluster && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Asal Cluster</p>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-              ⊕ {r.cluster}
-            </Badge>
-          </div>
-        )}
+        {/* Detail Lokasi */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Detail Lokasi</p>
+          <span className="text-sm font-medium text-foreground">{r.detailLokasi}</span>
+        </div>
+
+        {/* Ketidaksesuaian */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Ketidaksesuaian</p>
+          <span className="text-sm font-medium text-foreground">{r.ketidaksesuaian || '-'}</span>
+        </div>
+
+        {/* Sub Ketidaksesuaian */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Sub Ketidaksesuaian</p>
+          <span className="text-sm font-medium text-foreground">{r.subKetidaksesuaian || '-'}</span>
+        </div>
 
         {/* Finding Description */}
         <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
@@ -313,64 +314,6 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
     );
   };
 
-  // Other Report Item in list
-  const OtherReportItem = ({ r }: { r: HazardReport }) => {
-    const matchPercent = r.duplicateScores 
-      ? Math.round(r.duplicateScores.semantic * 100) 
-      : semanticScore;
-    const isSelected = selectedOtherId === r.id;
-    const isRep = representativeReport?.id === r.id;
-
-    return (
-      <div
-        className={`p-3 rounded-lg border transition-all cursor-pointer ${
-          isSelected 
-            ? 'bg-primary/10 border-primary/50' 
-            : 'bg-card border-border hover:border-primary/30 hover:bg-muted/30'
-        }`}
-        onClick={() => setSelectedOtherId(isSelected ? null : r.id)}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between mb-2">
-          <div>
-            <span className="font-mono text-sm text-foreground">{r.id}</span>
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-              <span>{r.tanggal}</span>
-              <span>•</span>
-              <span>{r.pelapor}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-lg font-bold text-primary">{matchPercent}%</span>
-            {isRep && (
-              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 gap-1 text-[10px] ml-2">
-                <Star className="w-2.5 h-2.5 fill-current" />
-                Rep
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Image indicator */}
-        <Badge variant="outline" className="text-xs gap-1 bg-primary/10 text-primary border-primary/30 mb-2">
-          <Clock className="w-3 h-3" />
-          <Image className="w-3 h-3" />
-          1 gambar
-        </Badge>
-
-        {/* Image placeholder */}
-        <div className="w-full h-8 rounded bg-muted/50 flex items-center justify-center mb-2">
-          <Image className="w-4 h-4 text-muted-foreground/30" />
-        </div>
-
-        {/* Description preview */}
-        <p className="text-xs text-muted-foreground line-clamp-2">
-          {r.deskripsiTemuan}
-        </p>
-      </div>
-    );
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
@@ -391,7 +334,7 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
               <div>
                 <h3 className="font-bold text-foreground text-lg">Semantic Review</h3>
                 <p className="text-sm text-muted-foreground">
-                  Analisis Gambar & Deskripsi
+                  Perbandingan Laporan dengan Representative
                 </p>
               </div>
             </div>
@@ -410,6 +353,18 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
                 <Users className="w-3 h-3 mr-1" />
                 {clusterReports.length} laporan dalam cluster
               </Badge>
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  cluster.status === 'Duplikat Kuat' 
+                    ? 'bg-destructive/10 text-destructive border-destructive/30' 
+                    : cluster.status === 'Duplikat Mungkin'
+                    ? 'bg-warning/10 text-warning border-warning/30'
+                    : 'bg-muted/50 text-muted-foreground'
+                }`}
+              >
+                {cluster.status}
+              </Badge>
             </div>
           )}
         </div>
@@ -417,127 +372,139 @@ const DuplicateHazardDetailPanel = ({ report, onClose }: DuplicateHazardDetailPa
         {/* Content - Side by Side */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Side - Selected Report */}
-          <div className="w-1/2 border-r border-border p-4 overflow-y-auto">
-            <ReportCard r={report} isRepresentative={isSelectedRepresentative} showAnalysis />
-          </div>
+          <ScrollArea className="w-1/2 border-r border-border">
+            <div className="p-4">
+              <ReportCard 
+                r={report} 
+                isRepresentative={representativeReport?.id === report.id}
+                title="Laporan Dipilih"
+                showAnalysis 
+              />
+            </div>
+          </ScrollArea>
 
-          {/* Right Side - Representative or Other Reports List */}
-          <div className="w-1/2 p-4 overflow-hidden flex flex-col bg-muted/10">
-            {selectedOtherReport ? (
-              /* Comparison View */
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex items-center gap-2 mb-4">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSelectedOtherId(null)}
-                    className="gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Kembali ke List
-                  </Button>
-                </div>
-                
-                <ReportCard 
-                  r={selectedOtherReport} 
-                  isRepresentative={representativeReport?.id === selectedOtherReport.id} 
-                  showAnalysis 
-                />
-              </div>
-            ) : isSelectedRepresentative ? (
-              /* When selected is representative, show list of other reports */
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold text-foreground">Laporan Mirip (berdasarkan makna)</span>
-                  </div>
-                </div>
-
-                {/* Sort Dropdown */}
-                <div className="mb-4">
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Urutkan..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="semantic">Semantic Tertinggi</SelectItem>
-                      <SelectItem value="lexical">Lexical Tertinggi</SelectItem>
-                      <SelectItem value="geo">Geo Tertinggi</SelectItem>
-                      <SelectItem value="overall">Overall Tertinggi</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Other Reports List */}
-                <ScrollArea className="flex-1">
-                  <div className="space-y-3 pr-2">
-                    {sortedOtherReports.length > 0 ? (
-                      sortedOtherReports.map((r) => (
-                        <OtherReportItem key={r.id} r={r} />
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>Tidak ada laporan duplicate lainnya</p>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </>
-            ) : (
-              /* When selected is NOT representative, show representative on right */
-              <>
-                {representativeReport && (
-                  <div className="flex-1 overflow-y-auto">
-                    <ReportCard r={representativeReport} isRepresentative showAnalysis={false} />
+          {/* Right Side - Representative Report */}
+          <ScrollArea className="w-1/2 bg-muted/10">
+            <div className="p-4">
+              {representativeReport ? (
+                <div className="space-y-6">
+                  {/* Representative Report - Same content as left */}
+                  <ReportCard 
+                    r={representativeReport} 
+                    isRepresentative 
+                    title="Laporan Representative"
+                    showAnalysis 
+                  />
+                  
+                  {/* Cluster Info at Bottom */}
+                  <div className="p-4 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2 text-foreground mb-3">
+                      <Users className="w-4 h-4" />
+                      <span className="font-semibold">Informasi Cluster</span>
+                    </div>
                     
-                    {/* Other Reports Info */}
-                    {otherReports.length > 1 && (
-                      <div className="mt-6 p-4 rounded-lg bg-muted/30 border border-border">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                          <Users className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            +{otherReports.length - 1} laporan lain dalam cluster ini
-                          </span>
+                    <div className="space-y-3">
+                      {/* Cluster ID and Name */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Cluster ID</p>
+                          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                            {cluster?.id || report.cluster}
+                          </Badge>
                         </div>
-                        
-                        {/* Sort Dropdown */}
-                        <div className="mb-3">
-                          <Select value={sortBy} onValueChange={setSortBy}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Urutkan..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="semantic">Semantic Tertinggi</SelectItem>
-                              <SelectItem value="lexical">Lexical Tertinggi</SelectItem>
-                              <SelectItem value="geo">Geo Tertinggi</SelectItem>
-                              <SelectItem value="overall">Overall Tertinggi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        {/* Clickable list */}
-                        <div className="space-y-2 max-h-60 overflow-y-auto">
-                          {sortedOtherReports
-                            .filter(r => r.id !== representativeReport.id)
-                            .map((r) => (
-                              <OtherReportItem key={r.id} r={r} />
-                            ))}
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Status</p>
+                          <Badge 
+                            variant="outline" 
+                            className={`${
+                              cluster?.status === 'Duplikat Kuat' 
+                                ? 'bg-destructive/10 text-destructive border-destructive/30' 
+                                : cluster?.status === 'Duplikat Mungkin'
+                                ? 'bg-warning/10 text-warning border-warning/30'
+                                : 'bg-muted/50 text-muted-foreground'
+                            }`}
+                          >
+                            {cluster?.status || 'Unknown'}
+                          </Badge>
                         </div>
                       </div>
-                    )}
+
+                      {/* Cluster Name */}
+                      {cluster?.name && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Nama Cluster</p>
+                          <span className="text-sm font-medium text-foreground">{cluster.name}</span>
+                        </div>
+                      )}
+
+                      {/* Similarity Score */}
+                      {cluster?.similarityScore && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Skor Kemiripan Cluster</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary rounded-full transition-all"
+                                style={{ width: `${cluster.similarityScore * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-bold text-primary">
+                              {Math.round(cluster.similarityScore * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Total Reports in Cluster */}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Total Laporan</p>
+                        <span className="text-sm font-medium text-foreground">
+                          {clusterReports.length} laporan
+                        </span>
+                      </div>
+
+                      {/* Other Reports Count */}
+                      {otherReportsCount > 0 && (
+                        <div className="pt-3 border-t border-border">
+                          <p className="text-xs text-muted-foreground mb-2">Laporan Lain dalam Cluster</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {clusterReports
+                              .filter(r => r.id !== report.id && r.id !== representativeReport.id)
+                              .slice(0, 5)
+                              .map((r) => (
+                                <Badge 
+                                  key={r.id} 
+                                  variant="outline" 
+                                  className="font-mono text-[10px] bg-muted/50"
+                                >
+                                  {r.id}
+                                </Badge>
+                              ))}
+                            {otherReportsCount > 5 && (
+                              <Badge variant="outline" className="text-[10px] bg-muted/50">
+                                +{otherReportsCount - 5} lainnya
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <p>Tidak ada representative untuk cluster ini</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-4 h-4" />
-            <span>Cluster dibuat oleh AI • 24 Des 15:30</span>
+            <span>Cluster dibuat oleh AI • Otomatis</span>
           </div>
           <Button variant="outline" onClick={onClose}>
             Tutup
