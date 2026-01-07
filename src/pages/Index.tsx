@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { ArrowLeft, Bot, FileText, Layers, ClipboardCheck, List, LayoutGrid } from "lucide-react";
 import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
@@ -7,6 +7,7 @@ import AIDuplicateQueueTable from "@/components/AIDuplicateQueueTable";
 import DuplicateHazardList from "@/components/DuplicateHazardList";
 import DuplicateClusterGrid from "@/components/DuplicateClusterGrid";
 import DuplicateClusterList from "@/components/DuplicateClusterList";
+import HazardDuplicateList from "@/components/HazardDuplicateList";
 import EvaluatorTable from "@/components/EvaluatorTable";
 import ReportDetail from "@/components/ReportDetail";
 import ReportListPanel from "@/components/ReportListPanel";
@@ -23,7 +24,7 @@ const Index = () => {
   const [evaluasiSubTab, setEvaluasiSubTab] = useState("reports");
   const [duplicateSubTab, setDuplicateSubTab] = useState("list");
   const [queueSubTab, setQueueSubTab] = useState("ai-labeling");
-
+  const [pendingClusterId, setPendingClusterId] = useState<string | null>(null);
   // Filter only post-AI reports (AI_SELESAI)
   const evaluatorReports = useMemo(() => 
     hazardReports.filter(r => r.aiStatus === "AI_SELESAI"),
@@ -66,6 +67,12 @@ const Index = () => {
       setCurrentReportIndex(newIndex);
       setSelectedReport(evaluatorReports[newIndex]);
     }
+  };
+
+  // Handle navigation from Hazard Duplicate to Duplicate Cluster
+  const handleNavigateToCluster = (clusterId: string) => {
+    setPendingClusterId(clusterId);
+    setDuplicateSubTab("cluster");
   };
 
   return (
@@ -196,7 +203,7 @@ const Index = () => {
                         </TabsContent>
 
                         <TabsContent value="hazard-duplicate" className="mt-4">
-                          <DuplicateClusterList clusters={reportClusters} />
+                          <HazardDuplicateList onNavigateToCluster={handleNavigateToCluster} />
                         </TabsContent>
                       </Tabs>
                     </TabsContent>
