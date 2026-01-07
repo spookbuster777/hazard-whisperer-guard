@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Bot, FileText, Layers, ClipboardCheck, List } from "lucide-react";
+import { ArrowLeft, Bot, FileText, Layers, ClipboardCheck, List, LayoutGrid } from "lucide-react";
 import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
 import AIQueueTable from "@/components/AIQueueTable";
 import AIDuplicateQueueTable from "@/components/AIDuplicateQueueTable";
 import DuplicateHazardList from "@/components/DuplicateHazardList";
 import DuplicateClusterGrid from "@/components/DuplicateClusterGrid";
+import DuplicateClusterList from "@/components/DuplicateClusterList";
 import EvaluatorTable from "@/components/EvaluatorTable";
 import ReportDetail from "@/components/ReportDetail";
 import ReportListPanel from "@/components/ReportListPanel";
@@ -168,8 +169,18 @@ const Index = () => {
                             value="cluster" 
                             className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
                           >
-                            <Layers className="w-4 h-4" />
+                            <LayoutGrid className="w-4 h-4" />
                             Duplicate Cluster
+                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
+                              {reportClusters.length}
+                            </span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="hazard-duplicate" 
+                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                          >
+                            <Layers className="w-4 h-4" />
+                            Hazard Duplicate
                             <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
                               {reportClusters.length}
                             </span>
@@ -182,6 +193,10 @@ const Index = () => {
 
                         <TabsContent value="cluster" className="mt-4">
                           <DuplicateClusterGrid clusters={reportClusters} />
+                        </TabsContent>
+
+                        <TabsContent value="hazard-duplicate" className="mt-4">
+                          <DuplicateClusterList clusters={reportClusters} />
                         </TabsContent>
                       </Tabs>
                     </TabsContent>
