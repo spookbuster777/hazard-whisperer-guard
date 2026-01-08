@@ -21,7 +21,7 @@ const Index = () => {
   const [currentReportIndex, setCurrentReportIndex] = useState(0);
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [mainTab, setMainTab] = useState("evaluasi");
-  const [evaluasiSubTab, setEvaluasiSubTab] = useState("reports");
+  // evaluasiSubTab removed - now using section layout
   const [duplicateSubTab, setDuplicateSubTab] = useState("list");
   const [queueSubTab, setQueueSubTab] = useState("ai-labeling");
   const [pendingClusterId, setPendingClusterId] = useState<string | null>(null);
@@ -131,83 +131,95 @@ const Index = () => {
                 </TabsList>
 
                 {/* Evaluasi Tab Content */}
-                <TabsContent value="evaluasi" className="space-y-6">
-                  {/* Evaluator Summary */}
-                  <EvaluatorSummary stats={evaluatorStats} />
-
-                  {/* Sub-tabs for Evaluasi */}
-                  <Tabs value={evaluasiSubTab} onValueChange={setEvaluasiSubTab}>
-                    <TabsList className="bg-muted/30">
-                      <TabsTrigger value="reports" className="gap-2">
-                        <FileText className="w-4 h-4" />
-                        Daftar Laporan
-                        <span className="ml-1 px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs font-medium">
-                          {evaluatorReports.length}
-                        </span>
-                      </TabsTrigger>
-                      <TabsTrigger value="duplicate" className="gap-2">
-                        <Layers className="w-4 h-4" />
-                        Duplicate Hazard
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="reports" className="mt-4">
+                <TabsContent value="evaluasi" className="space-y-8">
+                  {/* Section 1: Daftar Laporan */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                        1
+                      </div>
+                      <h2 className="text-lg font-semibold text-foreground">Daftar Laporan</h2>
+                    </div>
+                    
+                    {/* Summary for Daftar Laporan */}
+                    <EvaluatorSummary stats={evaluatorStats} />
+                    
+                    {/* Perlu Review Ulang Alert */}
+                    {evaluatorStats.perluReviewUlang > 0 && (
+                      <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+                        <span className="text-warning font-medium">⚠️ {evaluatorStats.perluReviewUlang} laporan memerlukan review ulang</span>
+                      </div>
+                    )}
+                    
+                    {/* List Laporan */}
+                    <div className="bg-card rounded-lg border border-border">
+                      <div className="p-4 border-b border-border">
+                        <h3 className="font-medium text-foreground flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          List Laporan
+                          <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary rounded-full text-xs font-semibold">
+                            {evaluatorReports.length}
+                          </span>
+                        </h3>
+                      </div>
                       <EvaluatorTable 
                         reports={evaluatorReports} 
                         onViewDetail={handleViewDetail} 
                       />
-                    </TabsContent>
+                    </div>
+                  </section>
 
-                    <TabsContent value="duplicate" className="mt-4">
-                      {/* Sub-tabs for Duplicate Hazard */}
-                      <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
-                        <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
-                          <TabsTrigger 
-                            value="list" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
+                  {/* Section 2: Duplicate Hazard */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                        2
+                      </div>
+                      <h2 className="text-lg font-semibold text-foreground">Duplicate Hazard</h2>
+                    </div>
+
+                    {/* Sub-tabs for Duplicate Hazard */}
+                    <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
+                      <div className="bg-card rounded-lg border border-border">
+                        <div className="p-4 border-b border-border">
+                          <h3 className="font-medium text-foreground flex items-center gap-2 mb-3">
                             <List className="w-4 h-4" />
                             List Hazard
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {aiDuplicateQueueReports.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="cluster" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <LayoutGrid className="w-4 h-4" />
-                            Duplicate Cluster
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {reportClusters.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="hazard-duplicate" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <Layers className="w-4 h-4" />
-                            Hazard Duplicate
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {reportClusters.length}
-                            </span>
-                          </TabsTrigger>
-                        </TabsList>
+                          </h3>
+                          <TabsList className="bg-muted/30 p-1">
+                            <TabsTrigger 
+                              value="cluster" 
+                              className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                            >
+                              <LayoutGrid className="w-4 h-4" />
+                              Duplicate Cluster
+                              <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
+                                {reportClusters.length}
+                              </span>
+                            </TabsTrigger>
+                            <TabsTrigger 
+                              value="hazard-duplicate" 
+                              className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                            >
+                              <Layers className="w-4 h-4" />
+                              Hazard Duplicate
+                              <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
+                                {reportClusters.length}
+                              </span>
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
 
-                        <TabsContent value="list" className="mt-4">
-                          <DuplicateHazardList reports={aiDuplicateQueueReports} />
-                        </TabsContent>
-
-                        <TabsContent value="cluster" className="mt-4">
+                        <TabsContent value="cluster" className="p-4 m-0">
                           <DuplicateClusterGrid clusters={reportClusters} />
                         </TabsContent>
 
-                        <TabsContent value="hazard-duplicate" className="mt-4">
+                        <TabsContent value="hazard-duplicate" className="p-4 m-0">
                           <HazardDuplicateList onNavigateToCluster={handleNavigateToCluster} />
                         </TabsContent>
-                      </Tabs>
-                    </TabsContent>
-                  </Tabs>
+                      </div>
+                    </Tabs>
+                  </section>
                 </TabsContent>
 
                 {/* Queue Tab Content with Sub-tabs */}
