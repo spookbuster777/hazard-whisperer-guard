@@ -1,10 +1,9 @@
 import { useState, useMemo, useRef } from "react";
-import { ArrowLeft, Bot, FileText, Layers, ClipboardCheck, List, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Bot, FileText, Layers, ClipboardCheck, LayoutGrid } from "lucide-react";
 import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
 import AIQueueTable from "@/components/AIQueueTable";
 import AIDuplicateQueueTable from "@/components/AIDuplicateQueueTable";
-import DuplicateHazardList from "@/components/DuplicateHazardList";
 import DuplicateClusterGrid from "@/components/DuplicateClusterGrid";
 import DuplicateClusterList from "@/components/DuplicateClusterList";
 import HazardDuplicateList from "@/components/HazardDuplicateList";
@@ -22,7 +21,7 @@ const Index = () => {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [mainTab, setMainTab] = useState("evaluasi");
   const [evaluasiSubTab, setEvaluasiSubTab] = useState("reports");
-  const [duplicateSubTab, setDuplicateSubTab] = useState("list");
+  const [duplicateSubTab, setDuplicateSubTab] = useState("cluster");
   const [queueSubTab, setQueueSubTab] = useState("ai-labeling");
   const [pendingClusterId, setPendingClusterId] = useState<string | null>(null);
   // Filter only post-AI reports (AI_SELESAI)
@@ -163,16 +162,6 @@ const Index = () => {
                       <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
                         <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
                           <TabsTrigger 
-                            value="list" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <List className="w-4 h-4" />
-                            List Hazard
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {aiDuplicateQueueReports.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger 
                             value="cluster" 
                             className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
                           >
@@ -193,10 +182,6 @@ const Index = () => {
                             </span>
                           </TabsTrigger>
                         </TabsList>
-
-                        <TabsContent value="list" className="mt-4">
-                          <DuplicateHazardList reports={aiDuplicateQueueReports} />
-                        </TabsContent>
 
                         <TabsContent value="cluster" className="mt-4">
                           <DuplicateClusterGrid clusters={reportClusters} />
