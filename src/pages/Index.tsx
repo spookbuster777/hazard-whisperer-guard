@@ -130,82 +130,44 @@ const Index = () => {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Evaluasi Tab Content */}
+                {/* Evaluasi Tab Content with Sub-tabs */}
                 <TabsContent value="evaluasi" className="space-y-6">
-                  {/* Evaluator Summary */}
-                  <EvaluatorSummary stats={evaluatorStats} />
-
-                  {/* Sub-tabs for Evaluasi */}
                   <Tabs value={evaluasiSubTab} onValueChange={setEvaluasiSubTab}>
-                    <TabsList className="bg-muted/30">
-                      <TabsTrigger value="reports" className="gap-2">
+                    <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
+                      <TabsTrigger 
+                        value="reports" 
+                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                      >
                         <FileText className="w-4 h-4" />
                         Daftar Laporan
-                        <span className="ml-1 px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs font-medium">
+                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-success/20 data-[state=active]:text-success rounded-full text-xs font-semibold">
                           {evaluatorReports.length}
                         </span>
                       </TabsTrigger>
-                      <TabsTrigger value="duplicate" className="gap-2">
+                      <TabsTrigger 
+                        value="duplicate" 
+                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
+                      >
                         <Layers className="w-4 h-4" />
                         Duplicate Hazard
+                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-info/20 data-[state=active]:text-info rounded-full text-xs font-semibold">
+                          {reportClusters.length}
+                        </span>
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="reports" className="mt-4">
+                    <TabsContent value="reports" className="mt-4 space-y-6">
+                      {/* Evaluator Summary */}
+                      <EvaluatorSummary stats={evaluatorStats} />
                       <EvaluatorTable 
                         reports={evaluatorReports} 
                         onViewDetail={handleViewDetail} 
                       />
                     </TabsContent>
 
-                    <TabsContent value="duplicate" className="mt-4">
-                      {/* Sub-tabs for Duplicate Hazard */}
-                      <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
-                        <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
-                          <TabsTrigger 
-                            value="list" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <List className="w-4 h-4" />
-                            List Hazard
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {aiDuplicateQueueReports.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="cluster" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <LayoutGrid className="w-4 h-4" />
-                            Duplicate Cluster
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {reportClusters.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger 
-                            value="hazard-duplicate" 
-                            className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                          >
-                            <Layers className="w-4 h-4" />
-                            Hazard Duplicate
-                            <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                              {reportClusters.length}
-                            </span>
-                          </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="list" className="mt-4">
-                          <DuplicateHazardList reports={aiDuplicateQueueReports} />
-                        </TabsContent>
-
-                        <TabsContent value="cluster" className="mt-4">
-                          <DuplicateClusterGrid clusters={reportClusters} />
-                        </TabsContent>
-
-                        <TabsContent value="hazard-duplicate" className="mt-4">
-                          <HazardDuplicateList onNavigateToCluster={handleNavigateToCluster} />
-                        </TabsContent>
-                      </Tabs>
+                    <TabsContent value="duplicate" className="mt-4 space-y-6">
+                      {/* Duplicate Hazard Content with Cluster Grid */}
+                      <HazardDuplicateList onNavigateToCluster={handleNavigateToCluster} />
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
