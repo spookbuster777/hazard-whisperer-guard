@@ -130,10 +130,7 @@ const Index = () => {
                 </TabsList>
 
                 {/* Evaluasi Tab Content */}
-                <TabsContent value="evaluasi" className="space-y-6">
-                  {/* Evaluator Summary */}
-                  <EvaluatorSummary stats={evaluatorStats} />
-
+                <TabsContent value="evaluasi" className="space-y-4">
                   {/* Sub-tabs for Evaluasi */}
                   <Tabs value={evaluasiSubTab} onValueChange={setEvaluasiSubTab}>
                     <TabsList className="bg-muted/30">
@@ -150,14 +147,16 @@ const Index = () => {
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="reports" className="mt-4">
+                    <TabsContent value="reports" className="mt-4 space-y-6">
+                      {/* Evaluator Summary - only shown in Daftar Laporan */}
+                      <EvaluatorSummary stats={evaluatorStats} />
                       <EvaluatorTable 
                         reports={evaluatorReports} 
                         onViewDetail={handleViewDetail} 
                       />
                     </TabsContent>
 
-                    <TabsContent value="duplicate" className="mt-4">
+                    <TabsContent value="duplicate" className="mt-4 space-y-4">
                       {/* Sub-tabs for Duplicate Hazard */}
                       <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
                         <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
