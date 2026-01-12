@@ -50,25 +50,22 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
         {/* Header - SCL ID with report count and cluster badges */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 group-hover:from-primary/30 group-hover:to-primary/10 transition-colors">
-              <Layers className="w-5 h-5 text-primary" />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/5 group-hover:from-purple-500/30 group-hover:to-purple-500/10 transition-colors">
+              <Layers className="w-5 h-5 text-purple-500" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{sclId}</h3>
+                <h3 className="font-bold text-purple-600 dark:text-purple-400 group-hover:text-purple-500 transition-colors">{sclId}</h3>
                 <span className="text-xs text-muted-foreground">•</span>
                 <span className="text-xs text-destructive font-medium">{cluster.reportCount} laporan</span>
               </div>
               {/* Origin Cluster Badges */}
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0">
                   {geoClusterId}
                 </Badge>
                 <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 text-[10px] px-1.5 py-0">
                   {lexClusterId}
-                </Badge>
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0">
-                  {sclId}
                 </Badge>
               </div>
             </div>
@@ -117,8 +114,8 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
         {/* Quick Action Badge */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5 text-warning shrink-0" />
-            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-[10px]">
+            <Zap className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
               {quickAction}
             </Badge>
           </div>
