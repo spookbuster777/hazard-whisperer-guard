@@ -111,23 +111,21 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
   return (
     <>
       {/* Hierarchical Filter System */}
-      <div className="mb-6">
-        <HierarchicalFilterSystem
-          filterState={filterState}
-          onFilterChange={setFilterState}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
-      </div>
+      <HierarchicalFilterSystem
+        filterState={filterState}
+        onFilterChange={setFilterState}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
 
       {/* Results count */}
-      <div className="mb-4 text-sm text-muted-foreground">
+      <div className="mt-4 mb-4 text-sm text-muted-foreground">
         Menampilkan {filteredClusters.length} dari {clusters.length} cluster
       </div>
 
       {/* Cluster Grid */}
       {filteredClusters.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredClusters.map(cluster => (
             <DuplicateClusterCard 
               key={cluster.id} 
