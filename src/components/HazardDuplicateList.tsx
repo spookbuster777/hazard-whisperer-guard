@@ -386,21 +386,19 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
   return (
     <>
       {/* Hierarchical Filter System */}
-      <div className="mb-6">
-        <HierarchicalFilterSystem
-          filterState={filterState}
-          onFilterChange={setFilterState}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
-      </div>
+      <HierarchicalFilterSystem
+        filterState={filterState}
+        onFilterChange={setFilterState}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
 
       {/* Results count */}
-      <div className="mb-4 text-sm text-muted-foreground">
+      <div className="mt-4 mb-4 text-sm text-muted-foreground">
         Menampilkan {filteredReports.length} dari {duplicateReports.length} laporan duplikat
       </div>
 
-      {/* Main Content - Two Column Layout */}
+      {/* Main Content - Table */}
       <div className="flex gap-6">
         {/* Left Column - Report Table */}
         <div className="flex-1">
