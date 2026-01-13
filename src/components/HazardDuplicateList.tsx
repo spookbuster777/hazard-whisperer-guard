@@ -203,33 +203,41 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
         if (!report.detailLokasi || !filterState.detailLocation.includes(report.detailLokasi)) return false;
       }
 
-      // AI Cluster filters (only apply if physical context is selected)
-      const isClusterFiltersEnabled = filterState.site.length > 0 && 
-        filterState.location.length > 0 && 
-        filterState.detailLocation.length > 0;
+      // AI Cluster filters based on selected options
+      // Geo cluster filter
+      if (filterState.cluster.geo.enabled && filterState.cluster.geo.modes.length > 0) {
+        const geoScore = report.duplicateScores?.geo || 0;
+        
+        const matchesGeo = filterState.cluster.geo.modes.some(mode => {
+          if (mode === "Same Area (±50m)") return geoScore >= 0.9;
+          if (mode === "Nearby Area (50–200m)") return geoScore >= 0.7 && geoScore < 0.9;
+          return false;
+        });
+        if (!matchesGeo) return false;
+      }
 
-      if (isClusterFiltersEnabled) {
-        // Geo cluster filter
-        if (filterState.cluster.geo.enabled) {
-          const geoScore = report.duplicateScores?.geo || 0;
-          if (filterState.cluster.geo.mode === "same_area") {
-            if (geoScore < 0.9) return false;
-          } else {
-            if (geoScore < 0.7 || geoScore >= 0.9) return false;
-          }
-        }
+      // Lexical cluster filter
+      if (filterState.cluster.lexical.enabled && filterState.cluster.lexical.thresholds.length > 0) {
+        const lexicalScore = report.duplicateScores?.lexical || 0;
+        
+        const matchesLexical = filterState.cluster.lexical.thresholds.some(threshold => {
+          if (threshold === "Medium Similarity (≥0.7)") return lexicalScore >= 0.7;
+          if (threshold === "High Similarity (≥0.85)") return lexicalScore >= 0.85;
+          return false;
+        });
+        if (!matchesLexical) return false;
+      }
 
-        // Lexical cluster filter
-        if (filterState.cluster.lexical.enabled) {
-          const lexicalScore = report.duplicateScores?.lexical || 0;
-          if (lexicalScore < filterState.cluster.lexical.threshold) return false;
-        }
-
-        // Semantic cluster filter
-        if (filterState.cluster.semantic.enabled) {
-          const semanticScore = report.duplicateScores?.semantic || 0;
-          if (semanticScore < filterState.cluster.semantic.threshold) return false;
-        }
+      // Semantic cluster filter
+      if (filterState.cluster.semantic.enabled && filterState.cluster.semantic.thresholds.length > 0) {
+        const semanticScore = report.duplicateScores?.semantic || 0;
+        
+        const matchesSemantic = filterState.cluster.semantic.thresholds.some(threshold => {
+          if (threshold === "Semantic Match (≥0.8)") return semanticScore >= 0.8;
+          if (threshold === "High Confidence (≥0.9)") return semanticScore >= 0.9;
+          return false;
+        });
+        if (!matchesSemantic) return false;
       }
 
       return true;
@@ -385,163 +393,163 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
 
   return (
     <>
-      {/* Hierarchical Filter System */}
+      {/* Hierarchical Filter System with Content inside */}
       <HierarchicalFilterSystem
         filterState={filterState}
         onFilterChange={setFilterState}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-      />
+      >
+        {/* Results count */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          Menampilkan {filteredReports.length} dari {duplicateReports.length} laporan duplikat
+        </div>
 
-      {/* Results count */}
-      <div className="mt-4 mb-4 text-sm text-muted-foreground">
-        Menampilkan {filteredReports.length} dari {duplicateReports.length} laporan duplikat
-      </div>
-
-      {/* Main Content - Table */}
-      <div className="flex gap-6">
-        {/* Left Column - Report Table */}
-        <div className="flex-1">
-          {filteredReports.length > 0 ? (
-            <div className="rounded-lg border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[140px]">ID</TableHead>
-                    <TableHead className="w-[100px]">Tanggal</TableHead>
-                    <TableHead className="w-[120px]">Site</TableHead>
-                    <TableHead className="w-[140px]">Lokasi</TableHead>
-                    <TableHead>Deskripsi</TableHead>
-                    <TableHead className="w-[100px]">Cluster</TableHead>
-                    <TableHead className="w-[120px]">Similarity</TableHead>
-                    <TableHead className="w-[80px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredReports.map((report) => {
-                    const geoScore = report.duplicateScores ? Math.round(report.duplicateScores.geo * 100) : 0;
-                    const lexScore = report.duplicateScores ? Math.round(report.duplicateScores.lexical * 100) : 0;
-                    const semScore = report.duplicateScores ? Math.round(report.duplicateScores.semantic * 100) : 0;
-                    
-                    return (
-                      <TableRow 
-                        key={report.id}
-                        className={`cursor-pointer hover:bg-muted/50 ${selectedReport?.id === report.id ? 'bg-primary/5' : ''}`}
-                        onClick={() => handleViewDetail(report)}
-                      >
-                        <TableCell className="font-mono text-xs">{report.id}</TableCell>
-                        <TableCell className="text-sm">{report.tanggal}</TableCell>
-                        <TableCell className="text-sm">{report.site}</TableCell>
-                        <TableCell className="text-sm">{report.lokasiArea || report.lokasi}</TableCell>
-                        <TableCell className="text-sm max-w-[200px] truncate">
-                          {report.deskripsiTemuan}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-xs">
-                            SCL-{report.cluster?.replace('C-', '')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-[10px] px-1">
-                                    G:{geoScore}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-popover border">
-                                  <p className="text-xs">Geo Score: {geoScore}%</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-[10px] px-1">
-                                    L:{lexScore}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-popover border">
-                                  <p className="text-xs">Lexical Score: {lexScore}%</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-[10px] px-1">
-                                    S:{semScore}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="bg-popover border">
-                                  <p className="text-xs">Semantic Score: {semScore}%</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="sm" className="h-7 px-2">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border bg-card">
-              <div className="text-muted-foreground mb-2">
-                Tidak ada laporan yang cocok dengan filter
+        {/* Main Content - Table + Detail Panel */}
+        <div className="flex gap-6">
+          {/* Left Column - Report Table */}
+          <div className="flex-1">
+            {filteredReports.length > 0 ? (
+              <div className="rounded-lg border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[140px]">ID</TableHead>
+                      <TableHead className="w-[100px]">Tanggal</TableHead>
+                      <TableHead className="w-[120px]">Site</TableHead>
+                      <TableHead className="w-[140px]">Lokasi</TableHead>
+                      <TableHead>Deskripsi</TableHead>
+                      <TableHead className="w-[100px]">Cluster</TableHead>
+                      <TableHead className="w-[120px]">Similarity</TableHead>
+                      <TableHead className="w-[80px]">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredReports.map((report) => {
+                      const geoScore = report.duplicateScores ? Math.round(report.duplicateScores.geo * 100) : 0;
+                      const lexScore = report.duplicateScores ? Math.round(report.duplicateScores.lexical * 100) : 0;
+                      const semScore = report.duplicateScores ? Math.round(report.duplicateScores.semantic * 100) : 0;
+                      
+                      return (
+                        <TableRow 
+                          key={report.id}
+                          className={`cursor-pointer hover:bg-muted/50 ${selectedReport?.id === report.id ? 'bg-primary/5' : ''}`}
+                          onClick={() => handleViewDetail(report)}
+                        >
+                          <TableCell className="font-mono text-xs">{report.id}</TableCell>
+                          <TableCell className="text-sm">{report.tanggal}</TableCell>
+                          <TableCell className="text-sm">{report.site}</TableCell>
+                          <TableCell className="text-sm">{report.lokasiArea || report.lokasi}</TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">
+                            {report.deskripsiTemuan}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-xs">
+                              SCL-{report.cluster?.replace('C-', '')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-[10px] px-1">
+                                      G:{geoScore}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="bg-popover border">
+                                    <p className="text-xs">Geo Score: {geoScore}%</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-[10px] px-1">
+                                      L:{lexScore}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="bg-popover border">
+                                    <p className="text-xs">Lexical Score: {lexScore}%</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-[10px] px-1">
+                                      S:{semScore}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="bg-popover border">
+                                    <p className="text-xs">Semantic Score: {semScore}%</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" className="h-7 px-2">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
-              <p className="text-sm text-muted-foreground/70">
-                Coba ubah atau reset filter untuk melihat lebih banyak hasil
-              </p>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border bg-card">
+                <div className="text-muted-foreground mb-2">
+                  Tidak ada laporan yang cocok dengan filter
+                </div>
+                <p className="text-sm text-muted-foreground/70">
+                  Coba ubah atau reset filter untuk melihat lebih banyak hasil
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Detail Panel */}
+          {selectedReport && (
+            <div className="w-[400px] shrink-0">
+              <div className="sticky top-4 rounded-lg border bg-card p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-foreground">Detail Laporan</h3>
+                  <Button variant="ghost" size="sm" onClick={handleClosePanel}>
+                    ×
+                  </Button>
+                </div>
+                <ScrollArea className="h-[calc(100vh-200px)]">
+                  <ReportCard 
+                    r={selectedReport}
+                    showAnalysis={true}
+                    geoScore={getReportData(selectedReport).geoScore}
+                    lexicalScore={getReportData(selectedReport).lexicalScore}
+                    semanticScore={getReportData(selectedReport).semanticScore}
+                  />
+                  
+                  {/* Navigate to Cluster */}
+                  {selectedReport.cluster && onNavigateToCluster && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full gap-2"
+                        onClick={() => onNavigateToCluster(selectedReport.cluster!)}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Lihat Cluster SCL-{selectedReport.cluster.replace('C-', '')}
+                      </Button>
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Right Column - Detail Panel */}
-        {selectedReport && (
-          <div className="w-[400px] shrink-0">
-            <div className="sticky top-4 rounded-lg border bg-card p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">Detail Laporan</h3>
-                <Button variant="ghost" size="sm" onClick={handleClosePanel}>
-                  ×
-                </Button>
-              </div>
-              <ScrollArea className="h-[calc(100vh-200px)]">
-                <ReportCard 
-                  r={selectedReport}
-                  showAnalysis={true}
-                  geoScore={getReportData(selectedReport).geoScore}
-                  lexicalScore={getReportData(selectedReport).lexicalScore}
-                  semanticScore={getReportData(selectedReport).semanticScore}
-                />
-                
-                {/* Navigate to Cluster */}
-                {selectedReport.cluster && onNavigateToCluster && (
-                  <div className="mt-4 pt-4 border-t">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full gap-2"
-                      onClick={() => onNavigateToCluster(selectedReport.cluster!)}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Lihat Cluster SCL-{selectedReport.cluster.replace('C-', '')}
-                    </Button>
-                  </div>
-                )}
-              </ScrollArea>
-            </div>
-          </div>
-        )}
-      </div>
+      </HierarchicalFilterSystem>
     </>
   );
 };
