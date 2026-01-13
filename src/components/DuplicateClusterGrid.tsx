@@ -54,41 +54,44 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
         if (!representativeReport?.detailLokasi || !filterState.detailLocation.includes(representativeReport.detailLokasi)) return false;
       }
 
-      // AI Cluster filters (only apply if physical context is selected)
-      const isClusterFiltersEnabled = filterState.site.length > 0 && 
-        filterState.location.length > 0 && 
-        filterState.detailLocation.length > 0;
+      // AI Cluster filters based on selected options
+      // Geo cluster filter
+      if (filterState.cluster.geo.enabled && filterState.cluster.geo.modes.length > 0) {
+        const avgGeoScore = clusterReports.reduce((sum, r) => 
+          sum + (r.duplicateScores?.geo || 0), 0) / clusterReports.length;
+        
+        const matchesGeo = filterState.cluster.geo.modes.some(mode => {
+          if (mode === "Same Area (±50m)") return avgGeoScore >= 0.9;
+          if (mode === "Nearby Area (50–200m)") return avgGeoScore >= 0.7 && avgGeoScore < 0.9;
+          return false;
+        });
+        if (!matchesGeo) return false;
+      }
 
-      if (isClusterFiltersEnabled) {
-        // Geo cluster filter - filter by geo similarity score
-        if (filterState.cluster.geo.enabled) {
-          const avgGeoScore = clusterReports.reduce((sum, r) => 
-            sum + (r.duplicateScores?.geo || 0), 0) / clusterReports.length;
-          
-          if (filterState.cluster.geo.mode === "same_area") {
-            // Same area requires high geo score (>= 0.9)
-            if (avgGeoScore < 0.9) return false;
-          } else {
-            // Nearby area requires moderate geo score (>= 0.7)
-            if (avgGeoScore < 0.7 || avgGeoScore >= 0.9) return false;
-          }
-        }
+      // Lexical cluster filter
+      if (filterState.cluster.lexical.enabled && filterState.cluster.lexical.thresholds.length > 0) {
+        const avgLexicalScore = clusterReports.reduce((sum, r) => 
+          sum + (r.duplicateScores?.lexical || 0), 0) / clusterReports.length;
+        
+        const matchesLexical = filterState.cluster.lexical.thresholds.some(threshold => {
+          if (threshold === "Medium Similarity (≥0.7)") return avgLexicalScore >= 0.7;
+          if (threshold === "High Similarity (≥0.85)") return avgLexicalScore >= 0.85;
+          return false;
+        });
+        if (!matchesLexical) return false;
+      }
 
-        // Lexical cluster filter - filter by lexical similarity score
-        if (filterState.cluster.lexical.enabled) {
-          const avgLexicalScore = clusterReports.reduce((sum, r) => 
-            sum + (r.duplicateScores?.lexical || 0), 0) / clusterReports.length;
-          
-          if (avgLexicalScore < filterState.cluster.lexical.threshold) return false;
-        }
-
-        // Semantic cluster filter - filter by semantic similarity score
-        if (filterState.cluster.semantic.enabled) {
-          const avgSemanticScore = clusterReports.reduce((sum, r) => 
-            sum + (r.duplicateScores?.semantic || 0), 0) / clusterReports.length;
-          
-          if (avgSemanticScore < filterState.cluster.semantic.threshold) return false;
-        }
+      // Semantic cluster filter
+      if (filterState.cluster.semantic.enabled && filterState.cluster.semantic.thresholds.length > 0) {
+        const avgSemanticScore = clusterReports.reduce((sum, r) => 
+          sum + (r.duplicateScores?.semantic || 0), 0) / clusterReports.length;
+        
+        const matchesSemantic = filterState.cluster.semantic.thresholds.some(threshold => {
+          if (threshold === "Semantic Match (≥0.8)") return avgSemanticScore >= 0.8;
+          if (threshold === "High Confidence (≥0.9)") return avgSemanticScore >= 0.9;
+          return false;
+        });
+        if (!matchesSemantic) return false;
       }
 
       return true;
@@ -110,40 +113,40 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
 
   return (
     <>
-      {/* Hierarchical Filter System */}
+      {/* Hierarchical Filter System with Cards Grid inside */}
       <HierarchicalFilterSystem
         filterState={filterState}
         onFilterChange={setFilterState}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-      />
-
-      {/* Results count */}
-      <div className="mt-4 mb-4 text-sm text-muted-foreground">
-        Menampilkan {filteredClusters.length} dari {clusters.length} cluster
-      </div>
-
-      {/* Cluster Grid */}
-      {filteredClusters.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredClusters.map(cluster => (
-            <DuplicateClusterCard 
-              key={cluster.id} 
-              cluster={cluster} 
-              onViewDetail={handleViewDetail}
-            />
-          ))}
+      >
+        {/* Results count */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          Menampilkan {filteredClusters.length} dari {clusters.length} cluster
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="text-muted-foreground mb-2">
-            Tidak ada cluster yang cocok dengan filter
+
+        {/* Cluster Grid - beside physical context filter */}
+        {filteredClusters.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredClusters.map(cluster => (
+              <DuplicateClusterCard 
+                key={cluster.id} 
+                cluster={cluster} 
+                onViewDetail={handleViewDetail}
+              />
+            ))}
           </div>
-          <p className="text-sm text-muted-foreground/70">
-            Coba ubah atau reset filter untuk melihat lebih banyak hasil
-          </p>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="text-muted-foreground mb-2">
+              Tidak ada cluster yang cocok dengan filter
+            </div>
+            <p className="text-sm text-muted-foreground/70">
+              Coba ubah atau reset filter untuk melihat lebih banyak hasil
+            </p>
+          </div>
+        )}
+      </HierarchicalFilterSystem>
 
       {/* Detail Panel */}
       {viewingCluster && (

@@ -14,8 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -27,9 +25,9 @@ import { cn } from "@/lib/utils";
 
 // Filter State Model
 export interface ClusterFilterState {
-  geo: { enabled: boolean; mode: "same_area" | "nearby_area" };
-  lexical: { enabled: boolean; threshold: number };
-  semantic: { enabled: boolean; threshold: number };
+  geo: { enabled: boolean; modes: string[] };
+  lexical: { enabled: boolean; thresholds: string[] };
+  semantic: { enabled: boolean; thresholds: string[] };
 }
 
 export interface HierarchicalFilterState {
@@ -44,6 +42,7 @@ interface HierarchicalFilterSystemProps {
   onFilterChange: (state: HierarchicalFilterState) => void;
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
+  children?: React.ReactNode;
 }
 
 // Initial filter state
@@ -52,11 +51,16 @@ export const initialFilterState: HierarchicalFilterState = {
   location: [],
   detailLocation: [],
   cluster: {
-    geo: { enabled: false, mode: "same_area" },
-    lexical: { enabled: false, threshold: 0.7 },
-    semantic: { enabled: false, threshold: 0.8 }
+    geo: { enabled: false, modes: [] },
+    lexical: { enabled: false, thresholds: [] },
+    semantic: { enabled: false, thresholds: [] }
   }
 };
+
+// Cluster filter options
+const geoClusterOptions = ["Same Area (±50m)", "Nearby Area (50–200m)"];
+const lexicalClusterOptions = ["Medium Similarity (≥0.7)", "High Similarity (≥0.85)"];
+const semanticClusterOptions = ["Semantic Match (≥0.8)", "High Confidence (≥0.9)"];
 
 // Sidebar Multi-Select Dropdown Component
 const SidebarMultiSelect = ({
@@ -223,27 +227,42 @@ const SidebarMultiSelect = ({
   );
 };
 
-// Cluster Filter Dropdown Component
-const ClusterFilterDropdown = ({
+// Cluster Multi-Select Dropdown Component (for Geo, Lexical, Semantic)
+const ClusterMultiSelect = ({
   label,
   icon: Icon,
   iconColor,
   borderColor,
   bgColor,
-  enabled,
-  onEnabledChange,
-  children
+  options,
+  selected,
+  onChange
 }: {
   label: string;
   icon: React.ElementType;
   iconColor: string;
   borderColor: string;
   bgColor: string;
-  enabled: boolean;
-  onEnabledChange: (enabled: boolean) => void;
-  children?: React.ReactNode;
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
 }) => {
+  const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+
+  const filteredOptions = options.filter(opt => 
+    opt.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleItem = (item: string) => {
+    if (selected.includes(item)) {
+      onChange(selected.filter(s => s !== item));
+    } else {
+      onChange([...selected, item]);
+    }
+  };
+
+  const isActive = selected.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -252,38 +271,88 @@ const ClusterFilterDropdown = ({
           variant="outline"
           size="sm"
           className={cn(
-            "gap-2 h-9 px-3",
-            enabled && `${borderColor} ${bgColor}`
+            "gap-2 h-9 px-3 min-w-[140px]",
+            isActive && `${borderColor} ${bgColor}`
           )}
         >
           <Icon className={cn("w-4 h-4", iconColor)} />
           <span className="text-sm font-medium">{label}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-64 p-3 bg-popover border shadow-lg z-50" 
+        className="w-64 p-0 bg-popover border shadow-lg z-50" 
         align="start"
         sideOffset={4}
       >
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id={`${label}-enabled`}
-              checked={enabled}
-              onCheckedChange={(checked) => onEnabledChange(!!checked)}
+        {/* Search */}
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder={`Cari ${label.toLowerCase()}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8 text-sm"
             />
-            <Label 
-              htmlFor={`${label}-enabled`} 
-              className="flex items-center gap-1.5 text-sm font-medium cursor-pointer"
-            >
-              <Icon className={cn("w-4 h-4", iconColor)} />
-              Aktifkan {label}
-            </Label>
           </div>
-          
-          {enabled && children}
         </div>
+        
+        {/* Quick Actions */}
+        <div className="px-2 py-1.5 border-b flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs px-2"
+            onClick={() => onChange(options)}
+          >
+            Pilih Semua
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs px-2 text-muted-foreground"
+            onClick={() => onChange([])}
+          >
+            Hapus Semua
+          </Button>
+        </div>
+
+        {/* Options */}
+        <ScrollArea className="max-h-48">
+          <div className="p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Tidak ada opsi ditemukan
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => toggleItem(option)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-left",
+                    "hover:bg-muted/50 transition-colors",
+                    selected.includes(option) && `${bgColor}`
+                  )}
+                >
+                  <Checkbox
+                    checked={selected.includes(option)}
+                    className="h-4 w-4"
+                  />
+                  <span className="truncate">{option}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Selected count */}
+        {selected.length > 0 && (
+          <div className="px-2 py-1.5 border-t text-xs text-muted-foreground">
+            {selected.length} dipilih
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -293,13 +362,13 @@ const HierarchicalFilterSystem = ({
   filterState,
   onFilterChange,
   searchTerm = "",
-  onSearchChange
+  onSearchChange,
+  children
 }: HierarchicalFilterSystemProps) => {
 
   // Get available location options based on selected sites
   const availableLocations = useMemo(() => {
     if (filterState.site.length === 0) {
-      // Return all locations when no site selected
       const allLocations = new Set<string>();
       Object.values(lokasiOptions).forEach(locs => {
         locs.forEach(loc => allLocations.add(loc));
@@ -317,7 +386,6 @@ const HierarchicalFilterSystem = ({
   // Get available detail locations based on selected locations
   const availableDetailLocations = useMemo(() => {
     if (filterState.location.length === 0) {
-      // Return all detail locations when no location selected
       const allDetails = new Set<string>();
       Object.values(detailLokasiOptions).forEach(details => {
         details.forEach(det => allDetails.add(det));
@@ -334,7 +402,6 @@ const HierarchicalFilterSystem = ({
 
   // Handlers
   const handleSiteChange = useCallback((sites: string[]) => {
-    // Reset dependent filters when site changes
     onFilterChange({
       ...filterState,
       site: sites,
@@ -358,60 +425,84 @@ const HierarchicalFilterSystem = ({
     });
   }, [filterState, onFilterChange]);
 
-  const handleClusterChange = useCallback((cluster: ClusterFilterState) => {
+  const handleGeoChange = useCallback((modes: string[]) => {
     onFilterChange({
       ...filterState,
-      cluster
+      cluster: {
+        ...filterState.cluster,
+        geo: { enabled: modes.length > 0, modes }
+      }
+    });
+  }, [filterState, onFilterChange]);
+
+  const handleLexicalChange = useCallback((thresholds: string[]) => {
+    onFilterChange({
+      ...filterState,
+      cluster: {
+        ...filterState.cluster,
+        lexical: { enabled: thresholds.length > 0, thresholds }
+      }
+    });
+  }, [filterState, onFilterChange]);
+
+  const handleSemanticChange = useCallback((thresholds: string[]) => {
+    onFilterChange({
+      ...filterState,
+      cluster: {
+        ...filterState.cluster,
+        semantic: { enabled: thresholds.length > 0, thresholds }
+      }
     });
   }, [filterState, onFilterChange]);
 
   return (
     <div className="flex gap-6">
-      {/* Left Sidebar - Physical Context Filters */}
-      <div className="w-64 shrink-0 space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Left Sidebar - Physical Context Filters (Panel Navigation) */}
+      <div className="w-64 shrink-0">
+        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+          {/* Panel Header */}
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-semibold text-foreground">Konteks Fisik</span>
           </div>
+          
+          {/* Empty state info */}
+          {filterState.site.length === 0 && filterState.location.length === 0 && filterState.detailLocation.length === 0 && (
+            <p className="text-xs text-blue-600">
+              Kosong = Semua area
+            </p>
+          )}
+
+          {/* Site Filter */}
+          <SidebarMultiSelect
+            label="Site"
+            icon={Building2}
+            options={siteOptions}
+            selected={filterState.site}
+            onChange={handleSiteChange}
+            iconColor="text-blue-500"
+          />
+
+          {/* Location Filter */}
+          <SidebarMultiSelect
+            label="Location"
+            icon={MapPin}
+            options={availableLocations}
+            selected={filterState.location}
+            onChange={handleLocationChange}
+            iconColor="text-emerald-500"
+          />
+
+          {/* Detail Location Filter */}
+          <SidebarMultiSelect
+            label="Detail Location"
+            icon={Navigation}
+            options={availableDetailLocations}
+            selected={filterState.detailLocation}
+            onChange={handleDetailLocationChange}
+            iconColor="text-amber-500"
+          />
         </div>
-        
-        {/* Empty state info */}
-        {filterState.site.length === 0 && filterState.location.length === 0 && filterState.detailLocation.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Kosong = Semua area
-          </p>
-        )}
-
-        {/* Site Filter */}
-        <SidebarMultiSelect
-          label="Site"
-          icon={Building2}
-          options={siteOptions}
-          selected={filterState.site}
-          onChange={handleSiteChange}
-          iconColor="text-blue-500"
-        />
-
-        {/* Location Filter */}
-        <SidebarMultiSelect
-          label="Location"
-          icon={MapPin}
-          options={availableLocations}
-          selected={filterState.location}
-          onChange={handleLocationChange}
-          iconColor="text-emerald-500"
-        />
-
-        {/* Detail Location Filter */}
-        <SidebarMultiSelect
-          label="Detail Location"
-          icon={Navigation}
-          options={availableDetailLocations}
-          selected={filterState.detailLocation}
-          onChange={handleDetailLocationChange}
-          iconColor="text-amber-500"
-        />
       </div>
 
       {/* Right Content Area */}
@@ -431,127 +522,43 @@ const HierarchicalFilterSystem = ({
             </div>
           )}
 
-          {/* Cluster Filter Dropdowns */}
-          <ClusterFilterDropdown
+          {/* Cluster Filter Multi-Select Dropdowns */}
+          <ClusterMultiSelect
             label="Geo Cluster"
             icon={Globe}
             iconColor="text-blue-500"
             borderColor="border-blue-500/50"
             bgColor="bg-blue-500/10"
-            enabled={filterState.cluster.geo.enabled}
-            onEnabledChange={(enabled) => handleClusterChange({
-              ...filterState.cluster,
-              geo: { ...filterState.cluster.geo, enabled }
-            })}
-          >
-            <div className="space-y-1.5 pl-6">
-              <button
-                onClick={() => handleClusterChange({
-                  ...filterState.cluster,
-                  geo: { ...filterState.cluster.geo, mode: "same_area" }
-                })}
-                className={cn(
-                  "w-full text-left px-2 py-1.5 rounded text-xs",
-                  filterState.cluster.geo.mode === "same_area" 
-                    ? "bg-blue-500/20 text-blue-600" 
-                    : "hover:bg-muted/50"
-                )}
-              >
-                Same Area (±50m)
-              </button>
-              <button
-                onClick={() => handleClusterChange({
-                  ...filterState.cluster,
-                  geo: { ...filterState.cluster.geo, mode: "nearby_area" }
-                })}
-                className={cn(
-                  "w-full text-left px-2 py-1.5 rounded text-xs",
-                  filterState.cluster.geo.mode === "nearby_area" 
-                    ? "bg-blue-500/20 text-blue-600" 
-                    : "hover:bg-muted/50"
-                )}
-              >
-                Nearby Area (50–200m)
-              </button>
-            </div>
-          </ClusterFilterDropdown>
+            options={geoClusterOptions}
+            selected={filterState.cluster.geo.modes}
+            onChange={handleGeoChange}
+          />
 
-          <ClusterFilterDropdown
+          <ClusterMultiSelect
             label="Lexical Cluster"
             icon={Type}
             iconColor="text-orange-500"
             borderColor="border-orange-500/50"
             bgColor="bg-orange-500/10"
-            enabled={filterState.cluster.lexical.enabled}
-            onEnabledChange={(enabled) => handleClusterChange({
-              ...filterState.cluster,
-              lexical: { ...filterState.cluster.lexical, enabled }
-            })}
-          >
-            <div className="space-y-2 pl-6">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Threshold:</span>
-                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
-                  ≥{filterState.cluster.lexical.threshold.toFixed(2)}
-                </Badge>
-              </div>
-              <Slider
-                value={[filterState.cluster.lexical.threshold]}
-                onValueChange={([value]) => handleClusterChange({
-                  ...filterState.cluster,
-                  lexical: { ...filterState.cluster.lexical, threshold: value }
-                })}
-                min={0.5}
-                max={1}
-                step={0.05}
-                className="w-full"
-              />
-              <div className="text-[10px] text-muted-foreground">
-                {filterState.cluster.lexical.threshold >= 0.85 
-                  ? "High Similarity (≥0.85)" 
-                  : "Medium Similarity (≥0.7)"}
-              </div>
-            </div>
-          </ClusterFilterDropdown>
+            options={lexicalClusterOptions}
+            selected={filterState.cluster.lexical.thresholds}
+            onChange={handleLexicalChange}
+          />
 
-          <ClusterFilterDropdown
+          <ClusterMultiSelect
             label="Semantic Cluster"
             icon={Brain}
             iconColor="text-purple-500"
             borderColor="border-purple-500/50"
             bgColor="bg-purple-500/10"
-            enabled={filterState.cluster.semantic.enabled}
-            onEnabledChange={(enabled) => handleClusterChange({
-              ...filterState.cluster,
-              semantic: { ...filterState.cluster.semantic, enabled }
-            })}
-          >
-            <div className="space-y-2 pl-6">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Threshold:</span>
-                <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30">
-                  ≥{filterState.cluster.semantic.threshold.toFixed(2)}
-                </Badge>
-              </div>
-              <Slider
-                value={[filterState.cluster.semantic.threshold]}
-                onValueChange={([value]) => handleClusterChange({
-                  ...filterState.cluster,
-                  semantic: { ...filterState.cluster.semantic, threshold: value }
-                })}
-                min={0.6}
-                max={1}
-                step={0.05}
-                className="w-full"
-              />
-              <div className="text-[10px] text-muted-foreground">
-                {filterState.cluster.semantic.threshold >= 0.9 
-                  ? "High Confidence Duplicate (≥0.9)" 
-                  : "Semantic Match"}
-              </div>
-            </div>
-          </ClusterFilterDropdown>
+            options={semanticClusterOptions}
+            selected={filterState.cluster.semantic.thresholds}
+            onChange={handleSemanticChange}
+          />
         </div>
+
+        {/* Cards Grid (passed as children) */}
+        {children}
       </div>
     </div>
   );
