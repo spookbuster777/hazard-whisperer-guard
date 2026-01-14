@@ -481,84 +481,70 @@ const ActiveFilterSummary = ({
 
   if (!hasActiveFilters) return null;
 
+  const FilterTag = ({ label, values, colorClass }: { label: string; values: string[]; colorClass: string }) => {
+    if (values.length === 0) return null;
+    return (
+      <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm", colorClass)}>
+        <span className="font-medium opacity-70">{label}:</span>
+        <span className="font-semibold">{values.length > 2 ? `${values.slice(0, 2).join(", ")}...` : values.join(", ")}</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="bg-muted/30 border border-border rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
+    <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Active Filters:</span>
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Filter className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">Active Filters</span>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="h-8 px-3 text-xs font-medium border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50"
           onClick={onClearAll}
         >
-          <RotateCcw className="w-3 h-3 mr-1" />
-          Clear All Filters
+          <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+          Clear All
         </Button>
       </div>
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
-        {/* Geo */}
-        <div>
-          <span className="text-muted-foreground text-xs">Geo:</span>
-          <p className="font-mono text-foreground">
-            {filterState.cluster.geo.codes.length > 0 
-              ? filterState.cluster.geo.codes.join(", ") 
-              : "All"}
-          </p>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        {/* Physical Context Filters - Displayed first */}
+        <FilterTag 
+          label="Site" 
+          values={filterState.site} 
+          colorClass="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+        />
+        <FilterTag 
+          label="Location" 
+          values={filterState.location} 
+          colorClass="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+        />
+        <FilterTag 
+          label="Detail" 
+          values={filterState.detailLocation} 
+          colorClass="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+        />
         
-        {/* Lexical */}
-        <div>
-          <span className="text-muted-foreground text-xs">Lexical:</span>
-          <p className="font-mono text-foreground">
-            {filterState.cluster.lexical.codes.length > 0 
-              ? filterState.cluster.lexical.codes.join(", ") 
-              : "All"}
-          </p>
-        </div>
-        
-        {/* Semantic */}
-        <div>
-          <span className="text-muted-foreground text-xs">Semantic:</span>
-          <p className="font-mono text-foreground">
-            {filterState.cluster.semantic.codes.length > 0 
-              ? filterState.cluster.semantic.codes.join(", ") 
-              : "All"}
-          </p>
-        </div>
-        
-        {/* Site */}
-        <div>
-          <span className="text-muted-foreground text-xs">Site:</span>
-          <p className="text-foreground">
-            {filterState.site.length > 0 
-              ? filterState.site.join(", ") 
-              : "All"}
-          </p>
-        </div>
-        
-        {/* Location */}
-        <div>
-          <span className="text-muted-foreground text-xs">Location:</span>
-          <p className="text-foreground">
-            {filterState.location.length > 0 
-              ? filterState.location.join(", ") 
-              : "All"}
-          </p>
-        </div>
-        
-        {/* Detail */}
-        <div>
-          <span className="text-muted-foreground text-xs">Detail:</span>
-          <p className="text-foreground">
-            {filterState.detailLocation.length > 0 
-              ? filterState.detailLocation.join(", ") 
-              : "All"}
-          </p>
-        </div>
+        {/* Cluster Filters - Displayed after physical context */}
+        <FilterTag 
+          label="Geo" 
+          values={filterState.cluster.geo.codes} 
+          colorClass="bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+        />
+        <FilterTag 
+          label="Lexical" 
+          values={filterState.cluster.lexical.codes} 
+          colorClass="bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300"
+        />
+        <FilterTag 
+          label="Semantic" 
+          values={filterState.cluster.semantic.codes} 
+          colorClass="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
+        />
       </div>
     </div>
   );
