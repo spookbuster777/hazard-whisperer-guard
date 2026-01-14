@@ -8,7 +8,9 @@ import {
   Navigation,
   Globe,
   Type,
-  Brain
+  Brain,
+  Filter,
+  RotateCcw
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,14 +22,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { siteOptions, lokasiOptions, detailLokasiOptions } from "@/data/hazardReports";
 import { cn } from "@/lib/utils";
 
 // Filter State Model
 export interface ClusterFilterState {
-  geo: { enabled: boolean; modes: string[] };
-  lexical: { enabled: boolean; thresholds: string[] };
-  semantic: { enabled: boolean; thresholds: string[] };
+  geo: { enabled: boolean; codes: string[] };
+  lexical: { enabled: boolean; codes: string[] };
+  semantic: { enabled: boolean; codes: string[] };
 }
 
 export interface HierarchicalFilterState {
@@ -51,32 +59,69 @@ export const initialFilterState: HierarchicalFilterState = {
   location: [],
   detailLocation: [],
   cluster: {
-    geo: { enabled: false, modes: [] },
-    lexical: { enabled: false, thresholds: [] },
-    semantic: { enabled: false, thresholds: [] }
+    geo: { enabled: false, codes: [] },
+    lexical: { enabled: false, codes: [] },
+    semantic: { enabled: false, codes: [] }
   }
 };
 
-// Cluster filter options
-const geoClusterOptions = ["Same Area (±50m)", "Nearby Area (50–200m)"];
-const lexicalClusterOptions = ["Medium Similarity (≥0.7)", "High Similarity (≥0.85)"];
-const semanticClusterOptions = ["Semantic Match (≥0.8)", "High Confidence (≥0.9)"];
+// Cluster code options (hierarchical)
+const geoClusterOptions = ["GCL-001", "GCL-002", "GCL-003", "GCL-004", "GCL-005", "GCL-006"];
 
-// Sidebar Multi-Select Dropdown Component
-const SidebarMultiSelect = ({
+// Lexical clusters available for each geo cluster
+const lexicalClustersByGeo: Record<string, string[]> = {
+  "GCL-001": ["LCL-001", "LCL-002", "LCL-003"],
+  "GCL-002": ["LCL-004", "LCL-005"],
+  "GCL-003": ["LCL-006", "LCL-007", "LCL-008"],
+  "GCL-004": ["LCL-009", "LCL-010"],
+  "GCL-005": ["LCL-011", "LCL-012", "LCL-013"],
+  "GCL-006": ["LCL-014", "LCL-015"],
+};
+
+// Semantic clusters available for each lexical cluster
+const semanticClustersByLexical: Record<string, string[]> = {
+  "LCL-001": ["SCL-001", "SCL-002"],
+  "LCL-002": ["SCL-003"],
+  "LCL-003": ["SCL-004", "SCL-005"],
+  "LCL-004": ["SCL-006", "SCL-007"],
+  "LCL-005": ["SCL-008"],
+  "LCL-006": ["SCL-009", "SCL-010"],
+  "LCL-007": ["SCL-011"],
+  "LCL-008": ["SCL-012", "SCL-013"],
+  "LCL-009": ["SCL-014"],
+  "LCL-010": ["SCL-015", "SCL-016"],
+  "LCL-011": ["SCL-017"],
+  "LCL-012": ["SCL-018", "SCL-019"],
+  "LCL-013": ["SCL-020"],
+  "LCL-014": ["SCL-021", "SCL-022"],
+  "LCL-015": ["SCL-023"],
+};
+
+// Hierarchical Multi-Select Dropdown Component
+const HierarchicalMultiSelect = ({
   label,
   icon: Icon,
+  iconColor,
+  borderColor,
+  bgColor,
   options,
   selected,
   onChange,
-  iconColor = "text-muted-foreground"
+  disabled = false,
+  disabledMessage = "",
+  placeholder
 }: {
   label: string;
   icon: React.ElementType;
+  iconColor: string;
+  borderColor: string;
+  bgColor: string;
   options: string[];
   selected: string[];
   onChange: (selected: string[]) => void;
-  iconColor?: string;
+  disabled?: boolean;
+  disabledMessage?: string;
+  placeholder?: string;
 }) => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -93,36 +138,237 @@ const SidebarMultiSelect = ({
     }
   };
 
-  const clearAll = () => {
-    onChange([]);
-  };
+  const isActive = selected.length > 0;
+
+  const buttonContent = (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={disabled}
+      className={cn(
+        "gap-2 h-9 px-3 min-w-[160px]",
+        isActive && !disabled && `${borderColor} ${bgColor}`,
+        disabled && "opacity-50 cursor-not-allowed"
+      )}
+    >
+      <Icon className={cn("w-4 h-4", disabled ? "text-muted-foreground" : iconColor)} />
+      <span className="text-sm font-medium">{label}</span>
+      {selected.length > 0 && (
+        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+          {selected.length}
+        </Badge>
+      )}
+      <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+    </Button>
+  );
+
+  if (disabled) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {buttonContent}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-sm">{disabledMessage}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      {/* Label Row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className={cn("w-4 h-4", iconColor)} />
-          <span className="text-sm font-medium text-foreground">{label}</span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {buttonContent}
+      </PopoverTrigger>
+      <PopoverContent 
+        className="w-64 p-0 bg-popover border shadow-lg z-50" 
+        align="start"
+        sideOffset={4}
+      >
+        {/* Search */}
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder={placeholder || `Search ${label.toLowerCase()}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {selected.length === 0 ? "Semua" : ""}
-        </span>
-      </div>
+        
+        {/* Quick Actions */}
+        <div className="px-2 py-1.5 border-b flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs px-2"
+            onClick={() => onChange(filteredOptions)}
+          >
+            Select All
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs px-2 text-muted-foreground"
+            onClick={() => onChange([])}
+          >
+            Clear All
+          </Button>
+        </div>
 
-      {/* Dropdown */}
+        {/* Options */}
+        <ScrollArea className="max-h-48">
+          <div className="p-1">
+            {filteredOptions.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                No options found
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => toggleItem(option)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-left",
+                    "hover:bg-muted/50 transition-colors",
+                    selected.includes(option) && `${bgColor}`
+                  )}
+                >
+                  <Checkbox
+                    checked={selected.includes(option)}
+                    className="h-4 w-4"
+                  />
+                  <span className="truncate font-mono">{option}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Selected chips */}
+        {selected.length > 0 && (
+          <div className="p-2 border-t bg-muted/30">
+            <div className="flex flex-wrap gap-1">
+              {selected.slice(0, 3).map(item => (
+                <Badge 
+                  key={item} 
+                  variant="secondary" 
+                  className="gap-1 text-xs font-mono pr-1"
+                >
+                  {item}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleItem(item);
+                    }}
+                    className="ml-0.5 p-0.5 hover:bg-muted rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              ))}
+              {selected.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{selected.length - 3} more
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// Physical Context Multi-Select Dropdown
+const ContextMultiSelect = ({
+  label,
+  icon: Icon,
+  iconColor,
+  options,
+  selected,
+  onChange,
+  disabled = false,
+  disabledMessage = ""
+}: {
+  label: string;
+  icon: React.ElementType;
+  iconColor: string;
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  disabled?: boolean;
+  disabledMessage?: string;
+}) => {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filteredOptions = options.filter(opt => 
+    opt.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleItem = (item: string) => {
+    if (selected.includes(item)) {
+      onChange(selected.filter(s => s !== item));
+    } else {
+      onChange([...selected, item]);
+    }
+  };
+
+  const displayText = selected.length === 0 
+    ? "All" 
+    : selected.length === 1 
+      ? selected[0] 
+      : `${selected.length} selected`;
+
+  const buttonContent = (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={disabled}
+      className={cn(
+        "w-full justify-between h-9 bg-background border-border",
+        !disabled && "hover:bg-muted/50",
+        disabled && "opacity-50 cursor-not-allowed",
+        selected.length > 0 && !disabled && "border-primary/50 bg-primary/5"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className={cn("w-4 h-4", disabled ? "text-muted-foreground" : iconColor)} />
+        <span className="text-sm truncate max-w-[120px]">{displayText}</span>
+      </div>
+      <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+    </Button>
+  );
+
+  if (disabled) {
+    return (
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-muted-foreground">{label}</label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {buttonContent}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-sm">{disabledMessage}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-foreground">{label}</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-between h-9 bg-background border-border hover:bg-muted/50"
-          >
-            <span className="text-sm text-muted-foreground truncate">
-              {selected.length === 0 ? `Pilih ${label.toLowerCase()}...` : `${selected.length} dipilih`}
-            </span>
-            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-          </Button>
+          {buttonContent}
         </PopoverTrigger>
         <PopoverContent 
           className="w-64 p-0 bg-popover border shadow-lg z-50" 
@@ -134,7 +380,7 @@ const SidebarMultiSelect = ({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
-                placeholder={`Cari ${label.toLowerCase()}...`}
+                placeholder={`Search ${label.toLowerCase()}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-sm"
@@ -150,7 +396,7 @@ const SidebarMultiSelect = ({
               className="h-6 text-xs px-2"
               onClick={() => onChange(filteredOptions)}
             >
-              Pilih Semua
+              Select All
             </Button>
             <Button
               variant="ghost"
@@ -158,7 +404,7 @@ const SidebarMultiSelect = ({
               className="h-6 text-xs px-2 text-muted-foreground"
               onClick={() => onChange([])}
             >
-              Hapus Semua
+              Clear All
             </Button>
           </div>
 
@@ -167,7 +413,7 @@ const SidebarMultiSelect = ({
             <div className="p-1">
               {filteredOptions.length === 0 ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Tidak ada opsi ditemukan
+                  No options found
                 </div>
               ) : (
                 filteredOptions.map((option) => (
@@ -193,9 +439,9 @@ const SidebarMultiSelect = ({
         </PopoverContent>
       </Popover>
 
-      {/* Selected Items Display */}
+      {/* Selected chips */}
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 mt-1">
           {selected.map(item => (
             <Badge 
               key={item} 
@@ -211,150 +457,110 @@ const SidebarMultiSelect = ({
               </button>
             </Badge>
           ))}
-          {selected.length > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 text-xs px-1.5 text-muted-foreground hover:text-destructive"
-              onClick={clearAll}
-            >
-              Clear all
-            </Button>
-          )}
         </div>
       )}
     </div>
   );
 };
 
-// Cluster Multi-Select Dropdown Component (for Geo, Lexical, Semantic)
-const ClusterMultiSelect = ({
-  label,
-  icon: Icon,
-  iconColor,
-  borderColor,
-  bgColor,
-  options,
-  selected,
-  onChange
+// Active Filter Summary Component
+const ActiveFilterSummary = ({
+  filterState,
+  onClearAll
 }: {
-  label: string;
-  icon: React.ElementType;
-  iconColor: string;
-  borderColor: string;
-  bgColor: string;
-  options: string[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
+  filterState: HierarchicalFilterState;
+  onClearAll: () => void;
 }) => {
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
+  const hasActiveFilters = 
+    filterState.cluster.geo.codes.length > 0 ||
+    filterState.cluster.lexical.codes.length > 0 ||
+    filterState.cluster.semantic.codes.length > 0 ||
+    filterState.site.length > 0 ||
+    filterState.location.length > 0 ||
+    filterState.detailLocation.length > 0;
 
-  const filteredOptions = options.filter(opt => 
-    opt.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const toggleItem = (item: string) => {
-    if (selected.includes(item)) {
-      onChange(selected.filter(s => s !== item));
-    } else {
-      onChange([...selected, item]);
-    }
-  };
-
-  const isActive = selected.length > 0;
+  if (!hasActiveFilters) return null;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <div className="bg-muted/30 border border-border rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">Active Filters:</span>
+        </div>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className={cn(
-            "gap-2 h-9 px-3 min-w-[140px]",
-            isActive && `${borderColor} ${bgColor}`
-          )}
+          className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={onClearAll}
         >
-          <Icon className={cn("w-4 h-4", iconColor)} />
-          <span className="text-sm font-medium">{label}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+          <RotateCcw className="w-3 h-3 mr-1" />
+          Clear All Filters
         </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-64 p-0 bg-popover border shadow-lg z-50" 
-        align="start"
-        sideOffset={4}
-      >
-        {/* Search */}
-        <div className="p-2 border-b">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              placeholder={`Cari ${label.toLowerCase()}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 pl-8 text-sm"
-            />
-          </div>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+        {/* Geo */}
+        <div>
+          <span className="text-muted-foreground text-xs">Geo:</span>
+          <p className="font-mono text-foreground">
+            {filterState.cluster.geo.codes.length > 0 
+              ? filterState.cluster.geo.codes.join(", ") 
+              : "All"}
+          </p>
         </div>
         
-        {/* Quick Actions */}
-        <div className="px-2 py-1.5 border-b flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs px-2"
-            onClick={() => onChange(options)}
-          >
-            Pilih Semua
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs px-2 text-muted-foreground"
-            onClick={() => onChange([])}
-          >
-            Hapus Semua
-          </Button>
+        {/* Lexical */}
+        <div>
+          <span className="text-muted-foreground text-xs">Lexical:</span>
+          <p className="font-mono text-foreground">
+            {filterState.cluster.lexical.codes.length > 0 
+              ? filterState.cluster.lexical.codes.join(", ") 
+              : "All"}
+          </p>
         </div>
-
-        {/* Options */}
-        <ScrollArea className="max-h-48">
-          <div className="p-1">
-            {filteredOptions.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                Tidak ada opsi ditemukan
-              </div>
-            ) : (
-              filteredOptions.map((option) => (
-                <button
-                  key={option}
-                  onClick={() => toggleItem(option)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-left",
-                    "hover:bg-muted/50 transition-colors",
-                    selected.includes(option) && `${bgColor}`
-                  )}
-                >
-                  <Checkbox
-                    checked={selected.includes(option)}
-                    className="h-4 w-4"
-                  />
-                  <span className="truncate">{option}</span>
-                </button>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-
-        {/* Selected count */}
-        {selected.length > 0 && (
-          <div className="px-2 py-1.5 border-t text-xs text-muted-foreground">
-            {selected.length} dipilih
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+        
+        {/* Semantic */}
+        <div>
+          <span className="text-muted-foreground text-xs">Semantic:</span>
+          <p className="font-mono text-foreground">
+            {filterState.cluster.semantic.codes.length > 0 
+              ? filterState.cluster.semantic.codes.join(", ") 
+              : "All"}
+          </p>
+        </div>
+        
+        {/* Site */}
+        <div>
+          <span className="text-muted-foreground text-xs">Site:</span>
+          <p className="text-foreground">
+            {filterState.site.length > 0 
+              ? filterState.site.join(", ") 
+              : "All"}
+          </p>
+        </div>
+        
+        {/* Location */}
+        <div>
+          <span className="text-muted-foreground text-xs">Location:</span>
+          <p className="text-foreground">
+            {filterState.location.length > 0 
+              ? filterState.location.join(", ") 
+              : "All"}
+          </p>
+        </div>
+        
+        {/* Detail */}
+        <div>
+          <span className="text-muted-foreground text-xs">Detail:</span>
+          <p className="text-foreground">
+            {filterState.detailLocation.length > 0 
+              ? filterState.detailLocation.join(", ") 
+              : "All"}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -365,6 +571,28 @@ const HierarchicalFilterSystem = ({
   onSearchChange,
   children
 }: HierarchicalFilterSystemProps) => {
+
+  // Get available lexical options based on selected geo clusters
+  const availableLexicalOptions = useMemo(() => {
+    if (filterState.cluster.geo.codes.length === 0) return [];
+    const lexicals = new Set<string>();
+    filterState.cluster.geo.codes.forEach(geo => {
+      const geoLexicals = lexicalClustersByGeo[geo] || [];
+      geoLexicals.forEach(lex => lexicals.add(lex));
+    });
+    return Array.from(lexicals).sort();
+  }, [filterState.cluster.geo.codes]);
+
+  // Get available semantic options based on selected lexical clusters
+  const availableSemanticOptions = useMemo(() => {
+    if (filterState.cluster.lexical.codes.length === 0) return [];
+    const semantics = new Set<string>();
+    filterState.cluster.lexical.codes.forEach(lex => {
+      const lexSemantics = semanticClustersByLexical[lex] || [];
+      lexSemantics.forEach(sem => semantics.add(sem));
+    });
+    return Array.from(semantics).sort();
+  }, [filterState.cluster.lexical.codes]);
 
   // Get available location options based on selected sites
   const availableLocations = useMemo(() => {
@@ -400,7 +628,42 @@ const HierarchicalFilterSystem = ({
     return Array.from(details);
   }, [filterState.location]);
 
-  // Handlers
+  // Handlers - Cluster Filters with hierarchical clearing
+  const handleGeoChange = useCallback((codes: string[]) => {
+    // Clear lexical and semantic when geo changes
+    onFilterChange({
+      ...filterState,
+      cluster: {
+        geo: { enabled: codes.length > 0, codes },
+        lexical: { enabled: false, codes: [] },
+        semantic: { enabled: false, codes: [] }
+      }
+    });
+  }, [filterState, onFilterChange]);
+
+  const handleLexicalChange = useCallback((codes: string[]) => {
+    // Clear semantic when lexical changes
+    onFilterChange({
+      ...filterState,
+      cluster: {
+        ...filterState.cluster,
+        lexical: { enabled: codes.length > 0, codes },
+        semantic: { enabled: false, codes: [] }
+      }
+    });
+  }, [filterState, onFilterChange]);
+
+  const handleSemanticChange = useCallback((codes: string[]) => {
+    onFilterChange({
+      ...filterState,
+      cluster: {
+        ...filterState.cluster,
+        semantic: { enabled: codes.length > 0, codes }
+      }
+    });
+  }, [filterState, onFilterChange]);
+
+  // Handlers - Physical Context Filters with hierarchical clearing
   const handleSiteChange = useCallback((sites: string[]) => {
     onFilterChange({
       ...filterState,
@@ -425,82 +688,67 @@ const HierarchicalFilterSystem = ({
     });
   }, [filterState, onFilterChange]);
 
-  const handleGeoChange = useCallback((modes: string[]) => {
-    onFilterChange({
-      ...filterState,
-      cluster: {
-        ...filterState.cluster,
-        geo: { enabled: modes.length > 0, modes }
-      }
-    });
-  }, [filterState, onFilterChange]);
+  // Clear all filters
+  const handleClearAll = useCallback(() => {
+    onFilterChange(initialFilterState);
+    if (onSearchChange) onSearchChange("");
+  }, [onFilterChange, onSearchChange]);
 
-  const handleLexicalChange = useCallback((thresholds: string[]) => {
-    onFilterChange({
-      ...filterState,
-      cluster: {
-        ...filterState.cluster,
-        lexical: { enabled: thresholds.length > 0, thresholds }
-      }
-    });
-  }, [filterState, onFilterChange]);
-
-  const handleSemanticChange = useCallback((thresholds: string[]) => {
-    onFilterChange({
-      ...filterState,
-      cluster: {
-        ...filterState.cluster,
-        semantic: { enabled: thresholds.length > 0, thresholds }
-      }
-    });
-  }, [filterState, onFilterChange]);
+  const isLexicalDisabled = filterState.cluster.geo.codes.length === 0;
+  const isSemanticDisabled = filterState.cluster.lexical.codes.length === 0;
+  const isLocationDisabled = filterState.site.length === 0;
+  const isDetailLocationDisabled = filterState.location.length === 0;
 
   return (
     <div className="flex gap-6">
-      {/* Left Sidebar - Physical Context Filters (Panel Navigation) */}
-      <div className="w-64 shrink-0">
-        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+      {/* Left Sidebar - Physical Context Filters Panel */}
+      <div className="w-60 shrink-0">
+        <div className="bg-card border border-border rounded-lg p-4 space-y-4 sticky top-4">
           {/* Panel Header */}
-          <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">Konteks Fisik</span>
+          <div className="flex items-center gap-2 pb-2 border-b border-border">
+            <Building2 className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Physical Context</span>
           </div>
           
           {/* Empty state info */}
           {filterState.site.length === 0 && filterState.location.length === 0 && filterState.detailLocation.length === 0 && (
-            <p className="text-xs text-blue-600">
-              Kosong = Semua area
+            <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+              Empty = All areas selected
             </p>
           )}
 
           {/* Site Filter */}
-          <SidebarMultiSelect
+          <ContextMultiSelect
             label="Site"
             icon={Building2}
+            iconColor="text-blue-500"
             options={siteOptions}
             selected={filterState.site}
             onChange={handleSiteChange}
-            iconColor="text-blue-500"
           />
 
           {/* Location Filter */}
-          <SidebarMultiSelect
+          <ContextMultiSelect
             label="Location"
             icon={MapPin}
+            iconColor="text-emerald-500"
             options={availableLocations}
             selected={filterState.location}
             onChange={handleLocationChange}
-            iconColor="text-emerald-500"
+            disabled={isLocationDisabled}
+            disabledMessage="Select Site first"
           />
 
           {/* Detail Location Filter */}
-          <SidebarMultiSelect
+          <ContextMultiSelect
             label="Detail Location"
             icon={Navigation}
+            iconColor="text-amber-500"
             options={availableDetailLocations}
             selected={filterState.detailLocation}
             onChange={handleDetailLocationChange}
-            iconColor="text-amber-500"
+            disabled={isDetailLocationDisabled}
+            disabledMessage="Select Location first"
           />
         </div>
       </div>
@@ -508,54 +756,71 @@ const HierarchicalFilterSystem = ({
       {/* Right Content Area */}
       <div className="flex-1 space-y-4">
         {/* Top Filter Bar - Search + Cluster Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Search Bar */}
-          {onSearchChange && (
-            <div className="relative flex-1 min-w-[280px] max-w-lg">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari cluster, deskripsi, lokasi..."
-                value={searchTerm}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 h-9 bg-background"
-              />
-            </div>
-          )}
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Search Bar */}
+            {onSearchChange && (
+              <div className="relative flex-1 min-w-[280px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search clusters, descriptions, locations..."
+                  value={searchTerm}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="pl-10 h-9 bg-background"
+                />
+              </div>
+            )}
 
-          {/* Cluster Filter Multi-Select Dropdowns */}
-          <ClusterMultiSelect
-            label="Geo Cluster"
-            icon={Globe}
-            iconColor="text-blue-500"
-            borderColor="border-blue-500/50"
-            bgColor="bg-blue-500/10"
-            options={geoClusterOptions}
-            selected={filterState.cluster.geo.modes}
-            onChange={handleGeoChange}
-          />
+            <div className="h-8 w-px bg-border mx-1" />
 
-          <ClusterMultiSelect
-            label="Lexical Cluster"
-            icon={Type}
-            iconColor="text-orange-500"
-            borderColor="border-orange-500/50"
-            bgColor="bg-orange-500/10"
-            options={lexicalClusterOptions}
-            selected={filterState.cluster.lexical.thresholds}
-            onChange={handleLexicalChange}
-          />
+            {/* Cluster Filter Multi-Select Dropdowns - Hierarchical */}
+            <HierarchicalMultiSelect
+              label="Geo Cluster"
+              icon={Globe}
+              iconColor="text-blue-500"
+              borderColor="border-blue-500/50"
+              bgColor="bg-blue-500/10"
+              options={geoClusterOptions}
+              selected={filterState.cluster.geo.codes}
+              onChange={handleGeoChange}
+              placeholder="Select geo cluster..."
+            />
 
-          <ClusterMultiSelect
-            label="Semantic Cluster"
-            icon={Brain}
-            iconColor="text-purple-500"
-            borderColor="border-purple-500/50"
-            bgColor="bg-purple-500/10"
-            options={semanticClusterOptions}
-            selected={filterState.cluster.semantic.thresholds}
-            onChange={handleSemanticChange}
-          />
+            <HierarchicalMultiSelect
+              label="Lexical Cluster"
+              icon={Type}
+              iconColor="text-orange-500"
+              borderColor="border-orange-500/50"
+              bgColor="bg-orange-500/10"
+              options={availableLexicalOptions}
+              selected={filterState.cluster.lexical.codes}
+              onChange={handleLexicalChange}
+              disabled={isLexicalDisabled}
+              disabledMessage="Select Geo Cluster first"
+              placeholder="Select lexical cluster..."
+            />
+
+            <HierarchicalMultiSelect
+              label="Semantic Cluster"
+              icon={Brain}
+              iconColor="text-purple-500"
+              borderColor="border-purple-500/50"
+              bgColor="bg-purple-500/10"
+              options={availableSemanticOptions}
+              selected={filterState.cluster.semantic.codes}
+              onChange={handleSemanticChange}
+              disabled={isSemanticDisabled}
+              disabledMessage="Select Lexical Cluster first"
+              placeholder="Select semantic cluster..."
+            />
+          </div>
         </div>
+
+        {/* Active Filter Summary */}
+        <ActiveFilterSummary 
+          filterState={filterState} 
+          onClearAll={handleClearAll}
+        />
 
         {/* Cards Grid (passed as children) */}
         {children}
