@@ -54,44 +54,26 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
         if (!representativeReport?.detailLokasi || !filterState.detailLocation.includes(representativeReport.detailLokasi)) return false;
       }
 
-      // AI Cluster filters based on selected options
+      // AI Cluster filters - now using cluster codes (GCL-xxx, LCL-xxx, SCL-xxx)
       // Geo cluster filter
-      if (filterState.cluster.geo.enabled && filterState.cluster.geo.modes.length > 0) {
+      if (filterState.cluster.geo.enabled && filterState.cluster.geo.codes.length > 0) {
         const avgGeoScore = clusterReports.reduce((sum, r) => 
           sum + (r.duplicateScores?.geo || 0), 0) / clusterReports.length;
-        
-        const matchesGeo = filterState.cluster.geo.modes.some(mode => {
-          if (mode === "Same Area (±50m)") return avgGeoScore >= 0.9;
-          if (mode === "Nearby Area (50–200m)") return avgGeoScore >= 0.7 && avgGeoScore < 0.9;
-          return false;
-        });
-        if (!matchesGeo) return false;
+        if (avgGeoScore < 0.5) return false;
       }
 
       // Lexical cluster filter
-      if (filterState.cluster.lexical.enabled && filterState.cluster.lexical.thresholds.length > 0) {
+      if (filterState.cluster.lexical.enabled && filterState.cluster.lexical.codes.length > 0) {
         const avgLexicalScore = clusterReports.reduce((sum, r) => 
           sum + (r.duplicateScores?.lexical || 0), 0) / clusterReports.length;
-        
-        const matchesLexical = filterState.cluster.lexical.thresholds.some(threshold => {
-          if (threshold === "Medium Similarity (≥0.7)") return avgLexicalScore >= 0.7;
-          if (threshold === "High Similarity (≥0.85)") return avgLexicalScore >= 0.85;
-          return false;
-        });
-        if (!matchesLexical) return false;
+        if (avgLexicalScore < 0.5) return false;
       }
 
       // Semantic cluster filter
-      if (filterState.cluster.semantic.enabled && filterState.cluster.semantic.thresholds.length > 0) {
+      if (filterState.cluster.semantic.enabled && filterState.cluster.semantic.codes.length > 0) {
         const avgSemanticScore = clusterReports.reduce((sum, r) => 
           sum + (r.duplicateScores?.semantic || 0), 0) / clusterReports.length;
-        
-        const matchesSemantic = filterState.cluster.semantic.thresholds.some(threshold => {
-          if (threshold === "Semantic Match (≥0.8)") return avgSemanticScore >= 0.8;
-          if (threshold === "High Confidence (≥0.9)") return avgSemanticScore >= 0.9;
-          return false;
-        });
-        if (!matchesSemantic) return false;
+        if (avgSemanticScore < 0.5) return false;
       }
 
       return true;
