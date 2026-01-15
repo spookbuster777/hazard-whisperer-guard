@@ -10,7 +10,8 @@ import {
   Type,
   Brain,
   Filter,
-  RotateCcw
+  RotateCcw,
+  SlidersHorizontal
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
 import { siteOptions, lokasiOptions, detailLokasiOptions } from "@/data/hazardReports";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +52,8 @@ interface HierarchicalFilterSystemProps {
   onFilterChange: (state: HierarchicalFilterState) => void;
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
+  similarityRange?: [number, number];
+  onSimilarityRangeChange?: (range: [number, number]) => void;
   children?: React.ReactNode;
 }
 
@@ -555,6 +559,8 @@ const HierarchicalFilterSystem = ({
   onFilterChange,
   searchTerm = "",
   onSearchChange,
+  similarityRange = [0, 100],
+  onSimilarityRangeChange,
   children
 }: HierarchicalFilterSystemProps) => {
 
@@ -799,6 +805,66 @@ const HierarchicalFilterSystem = ({
               disabledMessage="Select Lexical Cluster first"
               placeholder="Select semantic cluster..."
             />
+
+            {/* Similarity Range Slider */}
+            {onSimilarityRangeChange && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "gap-2 h-9 px-3 min-w-[140px]",
+                      (similarityRange[0] > 0 || similarityRange[1] < 100) && "border-primary/50 bg-primary/10"
+                    )}
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Similarity</span>
+                    {(similarityRange[0] > 0 || similarityRange[1] < 100) && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {similarityRange[0]}-{similarityRange[1]}%
+                      </Badge>
+                    )}
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-72 p-4 bg-popover border shadow-lg z-50" 
+                  align="start"
+                  sideOffset={4}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">Similarity Range</span>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        {similarityRange[0]}% - {similarityRange[1]}%
+                      </span>
+                    </div>
+                    <Slider
+                      value={similarityRange}
+                      onValueChange={(val) => onSimilarityRangeChange(val as [number, number])}
+                      min={0}
+                      max={100}
+                      step={5}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => onSimilarityRangeChange([0, 100])}
+                    >
+                      Reset to All
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         </div>
 
