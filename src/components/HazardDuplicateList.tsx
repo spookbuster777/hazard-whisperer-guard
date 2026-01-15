@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, Star, Clock, User, Calendar, Building2, Brain, ChevronUp, Globe, Type, Users, Image, ExternalLink } from "lucide-react";
+import HazardDuplicateFloatingPanel from "./HazardDuplicateFloatingPanel";
 import { ClusterInfo, HazardReport, hazardReports, reportClusters } from "@/data/hazardReports";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -494,45 +495,16 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
             )}
           </div>
 
-          {/* Right Column - Detail Panel */}
-          {selectedReport && (
-            <div className="w-[400px] shrink-0">
-              <div className="sticky top-4 rounded-lg border bg-card p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-foreground">Detail Laporan</h3>
-                  <Button variant="ghost" size="sm" onClick={handleClosePanel}>
-                    ×
-                  </Button>
-                </div>
-                <ScrollArea className="h-[calc(100vh-200px)]">
-                  <ReportCard 
-                    r={selectedReport}
-                    showAnalysis={true}
-                    geoScore={getReportData(selectedReport).geoScore}
-                    lexicalScore={getReportData(selectedReport).lexicalScore}
-                    semanticScore={getReportData(selectedReport).semanticScore}
-                  />
-                  
-                  {/* Navigate to Cluster */}
-                  {selectedReport.cluster && onNavigateToCluster && (
-                    <div className="mt-4 pt-4 border-t">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full gap-2"
-                        onClick={() => onNavigateToCluster(selectedReport.cluster!)}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Lihat Cluster SCL-{selectedReport.cluster.replace('C-', '')}
-                      </Button>
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-            </div>
-          )}
         </div>
       </HierarchicalFilterSystem>
+
+      {/* Floating Panel */}
+      {selectedReport && (
+        <HazardDuplicateFloatingPanel
+          report={selectedReport}
+          onClose={handleClosePanel}
+        />
+      )}
     </>
   );
 };
