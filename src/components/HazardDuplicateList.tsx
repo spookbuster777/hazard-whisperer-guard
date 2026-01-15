@@ -398,14 +398,14 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[140px]">ID</TableHead>
-                      <TableHead className="w-[100px]">Tanggal</TableHead>
-                      <TableHead className="w-[120px]">Site</TableHead>
-                      <TableHead className="w-[140px]">Lokasi</TableHead>
+                      <TableHead className="w-[100px]">ID</TableHead>
+                      <TableHead className="w-[90px]">Tanggal</TableHead>
+                      <TableHead className="w-[100px]">Site</TableHead>
+                      <TableHead className="w-[120px]">Lokasi</TableHead>
                       <TableHead>Deskripsi</TableHead>
-                      <TableHead className="w-[100px]">Cluster</TableHead>
-                      <TableHead className="w-[120px]">Similarity</TableHead>
-                      <TableHead className="w-[80px]">Aksi</TableHead>
+                      <TableHead className="w-[140px]">Cluster</TableHead>
+                      <TableHead className="w-[80px] text-center">Similarity</TableHead>
+                      <TableHead className="w-[60px]">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -413,6 +413,16 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                       const geoScore = report.duplicateScores ? Math.round(report.duplicateScores.geo * 100) : 0;
                       const lexScore = report.duplicateScores ? Math.round(report.duplicateScores.lexical * 100) : 0;
                       const semScore = report.duplicateScores ? Math.round(report.duplicateScores.semantic * 100) : 0;
+                      const avgScore = Math.round((geoScore + lexScore + semScore) / 3);
+                      
+                      // Generate cluster codes based on report cluster
+                      const clusterNum = report.cluster?.replace('C-', '') || '001';
+                      const gclCode = `GCL-${clusterNum}`;
+                      const lclCode = `LCL-${clusterNum}`;
+                      const sclCode = `SCL-${clusterNum}`;
+                      
+                      // Compact ID - show only last 8 chars
+                      const compactId = report.id.length > 8 ? report.id.slice(-8) : report.id;
                       
                       return (
                         <TableRow 
@@ -420,61 +430,62 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                           className={`cursor-pointer hover:bg-muted/50 ${selectedReport?.id === report.id ? 'bg-primary/5' : ''}`}
                           onClick={() => handleViewDetail(report)}
                         >
-                          <TableCell className="font-mono text-xs">{report.id}</TableCell>
-                          <TableCell className="text-sm">{report.tanggal}</TableCell>
-                          <TableCell className="text-sm">{report.site}</TableCell>
-                          <TableCell className="text-sm">{report.lokasiArea || report.lokasi}</TableCell>
+                          <TableCell>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-mono text-xs text-muted-foreground">{compactId}</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-popover border">
+                                  <p className="text-xs font-mono">{report.id}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{report.tanggal}</TableCell>
+                          <TableCell className="text-xs">{report.site}</TableCell>
+                          <TableCell className="text-xs">{report.lokasiArea || report.lokasi}</TableCell>
                           <TableCell className="text-sm max-w-[200px] truncate">
                             {report.deskripsiTemuan}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-xs">
-                              SCL-{report.cluster?.replace('C-', '')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-[10px] px-1">
-                                      G:{geoScore}
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="bg-popover border">
-                                    <p className="text-xs">Geo Score: {geoScore}%</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-[10px] px-1">
-                                      L:{lexScore}
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="bg-popover border">
-                                    <p className="text-xs">Lexical Score: {lexScore}%</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-[10px] px-1">
-                                      S:{semScore}
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="bg-popover border">
-                                    <p className="text-xs">Semantic Score: {semScore}%</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            <div className="flex flex-wrap gap-0.5">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                {gclCode}
+                              </span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                                {lclCode}
+                              </span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                                {sclCode}
+                              </span>
                             </div>
                           </TableCell>
+                          <TableCell className="text-center">
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-semibold ${
+                                    avgScore >= 80 ? 'bg-red-500/15 text-red-600' :
+                                    avgScore >= 60 ? 'bg-orange-500/15 text-orange-600' :
+                                    'bg-green-500/15 text-green-600'
+                                  }`}>
+                                    {avgScore}%
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-popover border p-2">
+                                  <div className="space-y-1 text-xs">
+                                    <p><span className="text-blue-500">Geo:</span> {geoScore}%</p>
+                                    <p><span className="text-orange-500">Lexical:</span> {lexScore}%</p>
+                                    <p><span className="text-purple-500">Semantic:</span> {semScore}%</p>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" className="h-7 px-2">
-                              <Eye className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Eye className="w-3.5 h-3.5" />
                             </Button>
                           </TableCell>
                         </TableRow>
