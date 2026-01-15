@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, Star, Clock, User, Calendar, Building2, Brain, ChevronUp, Globe, Type, Users, Image, ExternalLink } from "lucide-react";
+import { Search, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, Star, Clock, User, Calendar, Building2, Brain, ChevronUp, Globe, Type, Users, Image, ExternalLink, SlidersHorizontal } from "lucide-react";
 import HazardDuplicateFloatingPanel from "./HazardDuplicateFloatingPanel";
 import { ClusterInfo, HazardReport, hazardReports, reportClusters } from "@/data/hazardReports";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import HierarchicalFilterSystem, { 
   HierarchicalFilterState, 
   initialFilterState 
@@ -173,6 +175,7 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
   const [selectedReport, setSelectedReport] = useState<HazardReport | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterState, setFilterState] = useState<HierarchicalFilterState>(initialFilterState);
+  const [similarityRange, setSimilarityRange] = useState<[number, number]>([0, 100]);
 
   // Filter reports
   const filteredReports = useMemo(() => {
@@ -224,9 +227,16 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
         if (semanticScore < 0.5) return false;
       }
 
+      // Similarity range filter
+      const geoScore = report.duplicateScores?.geo || 0;
+      const lexScore = report.duplicateScores?.lexical || 0;
+      const semScore = report.duplicateScores?.semantic || 0;
+      const avgScore = Math.round(((geoScore + lexScore + semScore) / 3) * 100);
+      if (avgScore < similarityRange[0] || avgScore > similarityRange[1]) return false;
+
       return true;
     });
-  }, [searchTerm, filterState]);
+  }, [searchTerm, filterState, similarityRange]);
 
   const handleViewDetail = (report: HazardReport) => {
     setSelectedReport(report);
@@ -383,6 +393,8 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
         onFilterChange={setFilterState}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
+        similarityRange={similarityRange}
+        onSimilarityRangeChange={setSimilarityRange}
       >
         {/* Results count */}
         <div className="mb-4 text-sm text-muted-foreground">
@@ -395,17 +407,17 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
           <div className="flex-1">
             {filteredReports.length > 0 ? (
               <div className="rounded-lg border bg-card">
-                <Table>
+                <Table className="[&_tr]:border-b-0">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[100px]">ID</TableHead>
-                      <TableHead className="w-[90px]">Tanggal</TableHead>
-                      <TableHead className="w-[100px]">Site</TableHead>
-                      <TableHead className="w-[120px]">Lokasi</TableHead>
-                      <TableHead>Deskripsi</TableHead>
-                      <TableHead className="w-[140px]">Cluster</TableHead>
-                      <TableHead className="w-[80px] text-center">Similarity</TableHead>
-                      <TableHead className="w-[60px]">Aksi</TableHead>
+                    <TableRow className="border-b">
+                      <TableHead className="w-[100px] py-2">ID</TableHead>
+                      <TableHead className="w-[90px] py-2">Tanggal</TableHead>
+                      <TableHead className="w-[100px] py-2">Site</TableHead>
+                      <TableHead className="w-[120px] py-2">Lokasi</TableHead>
+                      <TableHead className="py-2">Deskripsi</TableHead>
+                      <TableHead className="w-[140px] py-2">Cluster</TableHead>
+                      <TableHead className="w-[80px] text-center py-2">Similarity</TableHead>
+                      <TableHead className="w-[60px] py-2">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -427,10 +439,10 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                       return (
                         <TableRow 
                           key={report.id}
-                          className={`cursor-pointer hover:bg-muted/50 ${selectedReport?.id === report.id ? 'bg-primary/5' : ''}`}
+                          className={`cursor-pointer hover:bg-muted/50 h-10 ${selectedReport?.id === report.id ? 'bg-primary/5' : ''}`}
                           onClick={() => handleViewDetail(report)}
                         >
-                          <TableCell>
+                          <TableCell className="py-1.5">
                             <TooltipProvider delayDuration={100}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -442,13 +454,13 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                               </Tooltip>
                             </TooltipProvider>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{report.tanggal}</TableCell>
-                          <TableCell className="text-xs">{report.site}</TableCell>
-                          <TableCell className="text-xs">{report.lokasiArea || report.lokasi}</TableCell>
-                          <TableCell className="text-sm max-w-[200px] truncate">
+                          <TableCell className="text-xs text-muted-foreground py-1.5">{report.tanggal}</TableCell>
+                          <TableCell className="text-xs py-1.5">{report.site}</TableCell>
+                          <TableCell className="text-xs py-1.5">{report.lokasiArea || report.lokasi}</TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate py-1.5">
                             {report.deskripsiTemuan}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-1.5">
                             <div className="flex flex-wrap gap-0.5">
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
                                 {gclCode}
@@ -461,11 +473,11 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center py-1.5">
                             <TooltipProvider delayDuration={100}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-semibold ${
+                                  <span className={`inline-flex items-center justify-center w-10 h-5 rounded text-xs font-semibold ${
                                     avgScore >= 80 ? 'bg-red-500/15 text-red-600' :
                                     avgScore >= 60 ? 'bg-orange-500/15 text-orange-600' :
                                     'bg-green-500/15 text-green-600'
@@ -483,7 +495,7 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                               </Tooltip>
                             </TooltipProvider>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-1.5">
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                               <Eye className="w-3.5 h-3.5" />
                             </Button>

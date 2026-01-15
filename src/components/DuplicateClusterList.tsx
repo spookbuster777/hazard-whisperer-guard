@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { Search, Filter, X, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation } from "lucide-react";
+import { Search, Filter, X, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, SlidersHorizontal } from "lucide-react";
 import DuplicateClusterDetailPanel from "./DuplicateClusterDetailPanel";
 import { ClusterInfo, HazardReport, hazardReports, siteOptions } from "@/data/hazardReports";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ketidaksesuaianData } from "@/data/ketidaksesuaianData";
+import { cn } from "@/lib/utils";
 
 interface DuplicateClusterListProps {
   clusters: ClusterInfo[];
@@ -47,6 +50,9 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
   const [selectedGeoCluster, setSelectedGeoCluster] = useState<string[]>([]);
   const [selectedLexicalCluster, setSelectedLexicalCluster] = useState<string[]>([]);
   const [selectedSemanticCluster, setSelectedSemanticCluster] = useState<string[]>([]);
+  
+  // Similarity range filter
+  const [similarityRange, setSimilarityRange] = useState<[number, number]>([0, 100]);
   
   // Data filters
   const [selectedSites, setSelectedSites] = useState<string[]>([]);
@@ -99,6 +105,10 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
         if (!selectedSemanticCluster.includes(semId)) return false;
       }
 
+      // Similarity range filter
+      const similarityPercent = Math.round(cluster.similarityScore * 100);
+      if (similarityPercent < similarityRange[0] || similarityPercent > similarityRange[1]) return false;
+
       // Data filters (check representative report)
       const clusterReports = hazardReports.filter(r => r.cluster === cluster.id);
       const representativeReport = clusterReports[0];
@@ -121,7 +131,7 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
 
       return true;
     });
-  }, [clusters, searchTerm, selectedGeoCluster, selectedLexicalCluster, selectedSemanticCluster, selectedSites, selectedLokasi, selectedKetidaksesuaian, selectedSubKetidaksesuaian]);
+  }, [clusters, searchTerm, selectedGeoCluster, selectedLexicalCluster, selectedSemanticCluster, similarityRange, selectedSites, selectedLokasi, selectedKetidaksesuaian, selectedSubKetidaksesuaian]);
 
   // Helper function to get cluster data
   const getClusterData = (cluster: ClusterInfo) => {
@@ -164,11 +174,14 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
     setSelectedGeoCluster([]);
     setSelectedLexicalCluster([]);
     setSelectedSemanticCluster([]);
+    setSimilarityRange([0, 100]);
     setSelectedSites([]);
     setSelectedLokasi([]);
     setSelectedKetidaksesuaian([]);
     setSelectedSubKetidaksesuaian([]);
   };
+
+  const isSimilarityFiltered = similarityRange[0] > 0 || similarityRange[1] < 100;
 
   const activeFilterCount = [
     selectedGeoCluster,
@@ -178,7 +191,7 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
     selectedLokasi,
     selectedKetidaksesuaian,
     selectedSubKetidaksesuaian
-  ].filter(arr => arr.length > 0).length;
+  ].filter(arr => arr.length > 0).length + (isSimilarityFiltered ? 1 : 0);
 
   const toggleArrayItem = (arr: string[], item: string, setter: (arr: string[]) => void) => {
     if (arr.includes(item)) {
@@ -288,6 +301,64 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Similarity Range Slider */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "gap-2",
+                  isSimilarityFiltered && "border-primary/50 bg-primary/10"
+                )}
+              >
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
+                Similarity
+                {isSimilarityFiltered && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {similarityRange[0]}-{similarityRange[1]}%
+                  </Badge>
+                )}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-72 p-4 bg-popover border shadow-lg z-50" 
+              align="start"
+              sideOffset={4}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Similarity Range</span>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {similarityRange[0]}% - {similarityRange[1]}%
+                  </span>
+                </div>
+                <Slider
+                  value={similarityRange}
+                  onValueChange={(val) => setSimilarityRange(val as [number, number])}
+                  min={0}
+                  max={100}
+                  step={5}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={() => setSimilarityRange([0, 100])}
+                >
+                  Reset to All
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* More Filters */}
           <DropdownMenu>
@@ -492,18 +563,18 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
 
       {/* Table List */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <Table>
+        <Table className="[&_tr]:border-b-0">
           <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-[100px]">Cluster ID</TableHead>
-              <TableHead className="w-[80px]">Laporan</TableHead>
-              <TableHead className="w-[80px]">Similarity</TableHead>
-              <TableHead className="w-[150px]">Site / Lokasi</TableHead>
-              <TableHead className="w-[180px]">Ketidaksesuaian</TableHead>
-              <TableHead className="w-[180px]">Sub Ketidaksesuaian</TableHead>
-              <TableHead className="w-[100px]">Quick Action</TableHead>
-              <TableHead className="w-[200px]">Asal Cluster</TableHead>
-              <TableHead className="w-[80px]">Aksi</TableHead>
+            <TableRow className="bg-muted/50 border-b">
+              <TableHead className="w-[100px] py-2">Cluster ID</TableHead>
+              <TableHead className="w-[80px] py-2">Laporan</TableHead>
+              <TableHead className="w-[80px] py-2">Similarity</TableHead>
+              <TableHead className="w-[150px] py-2">Site / Lokasi</TableHead>
+              <TableHead className="w-[180px] py-2">Ketidaksesuaian</TableHead>
+              <TableHead className="w-[180px] py-2">Sub Ketidaksesuaian</TableHead>
+              <TableHead className="w-[100px] py-2">Quick Action</TableHead>
+              <TableHead className="w-[200px] py-2">Asal Cluster</TableHead>
+              <TableHead className="w-[80px] py-2">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -512,24 +583,24 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
               return (
                 <TableRow 
                   key={cluster.id} 
-                  className="hover:bg-muted/30 cursor-pointer group"
+                  className="hover:bg-muted/30 cursor-pointer group h-10"
                   onClick={() => handleViewDetail(cluster)}
                 >
-                  <TableCell>
+                  <TableCell className="py-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-md bg-primary/10">
-                        <Layers className="w-3.5 h-3.5 text-primary" />
+                      <div className="p-1 rounded-md bg-primary/10">
+                        <Layers className="w-3 h-3 text-primary" />
                       </div>
-                      <span className="font-medium text-foreground">{cluster.id}</span>
+                      <span className="font-medium text-foreground text-sm">{cluster.id}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="destructive" className="text-xs">
+                  <TableCell className="py-1.5">
+                    <Badge variant="destructive" className="text-[10px] h-5">
                       {cluster.reportCount} laporan
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <span className={`text-lg font-bold ${
+                  <TableCell className="py-1.5">
+                    <span className={`text-sm font-bold ${
                       data.similarityPercent >= 85 ? 'text-destructive' :
                       data.similarityPercent >= 75 ? 'text-warning' :
                       data.similarityPercent >= 70 ? 'text-yellow-500' : 'text-success'
@@ -537,17 +608,17 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
                       {data.similarityPercent}%
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
+                  <TableCell className="py-1.5">
+                    <div className="flex flex-col">
                       <span className="text-xs font-medium text-foreground">{data.site}</span>
-                      <span className="text-xs text-muted-foreground">{data.lokasi}</span>
+                      <span className="text-[10px] text-muted-foreground">{data.lokasi}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-1.5">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-xs text-foreground line-clamp-2 cursor-help">
+                          <span className="text-[10px] text-foreground line-clamp-2 cursor-help">
                             {data.ketidaksesuaian}
                           </span>
                         </TooltipTrigger>
@@ -557,11 +628,11 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
                       </Tooltip>
                     </TooltipProvider>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-1.5">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-xs text-muted-foreground line-clamp-2 cursor-help">
+                          <span className="text-[10px] text-muted-foreground line-clamp-2 cursor-help">
                             {data.subKetidaksesuaian}
                           </span>
                         </TooltipTrigger>
@@ -571,39 +642,39 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
                       </Tooltip>
                     </TooltipProvider>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px]">
-                      <Zap className="w-3 h-3 mr-1" />
+                  <TableCell className="py-1.5">
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[9px] h-5">
+                      <Zap className="w-2.5 h-2.5 mr-0.5" />
                       {data.quickAction}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-0.5 text-[9px] px-1.5">
-                        <MapPin className="w-2.5 h-2.5" />
+                  <TableCell className="py-1.5">
+                    <div className="flex flex-wrap items-center gap-0.5">
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 gap-0.5 text-[8px] px-1 h-4">
+                        <MapPin className="w-2 h-2" />
                         {data.geoClusterId}
                       </Badge>
-                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-0.5 text-[9px] px-1.5">
-                        <FileText className="w-2.5 h-2.5" />
+                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-0.5 text-[8px] px-1 h-4">
+                        <FileText className="w-2 h-2" />
                         {data.lexClusterId}
                       </Badge>
-                      <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 gap-0.5 text-[9px] px-1.5">
-                        <Layers className="w-2.5 h-2.5" />
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 gap-0.5 text-[8px] px-1 h-4">
+                        <Layers className="w-2 h-2" />
                         {data.semClusterId}
                       </Badge>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-1.5">
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      className="h-7 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 px-2 text-[10px] gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleViewDetail(cluster);
                       }}
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3 h-3" />
                       Detail
                     </Button>
                   </TableCell>
