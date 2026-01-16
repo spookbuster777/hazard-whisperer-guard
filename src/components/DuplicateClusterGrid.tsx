@@ -6,16 +6,27 @@ import HierarchicalFilterSystem, {
   HierarchicalFilterState, 
   initialFilterState 
 } from "./HierarchicalFilterSystem";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 interface DuplicateClusterGridProps {
   clusters: ClusterInfo[];
   onViewReport?: (report: HazardReport) => void;
 }
 
+const ITEMS_PER_PAGE = 9;
+
 const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridProps) => {
   const [viewingCluster, setViewingCluster] = useState<ClusterInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterState, setFilterState] = useState<HierarchicalFilterState>(initialFilterState);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filter clusters based on all filters
   const filteredClusters = useMemo(() => {
@@ -80,6 +91,18 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
     });
   }, [clusters, searchTerm, filterState]);
 
+  // Pagination
+  const totalPages = Math.ceil(filteredClusters.length / ITEMS_PER_PAGE);
+  const paginatedClusters = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredClusters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredClusters, currentPage]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterState]);
+
   const handleViewDetail = (cluster: ClusterInfo) => {
     setViewingCluster(cluster);
   };
@@ -93,6 +116,29 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
     onViewReport?.(report);
   };
 
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
   return (
     <>
       {/* Hierarchical Filter System with Cards Grid inside */}
@@ -104,20 +150,62 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
       >
         {/* Results count */}
         <div className="mb-4 text-sm text-muted-foreground">
-          Menampilkan {filteredClusters.length} dari {clusters.length} cluster
+          Menampilkan {paginatedClusters.length} dari {filteredClusters.length} cluster
+          {filteredClusters.length !== clusters.length && ` (total ${clusters.length})`}
         </div>
 
-        {/* Cluster Grid - beside physical context filter */}
-        {filteredClusters.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredClusters.map(cluster => (
-              <DuplicateClusterCard 
-                key={cluster.id} 
-                cluster={cluster} 
-                onViewDetail={handleViewDetail}
-              />
-            ))}
-          </div>
+        {/* Cluster Grid */}
+        {paginatedClusters.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {paginatedClusters.map(cluster => (
+                <DuplicateClusterCard 
+                  key={cluster.id} 
+                  cluster={cluster} 
+                  onViewDetail={handleViewDetail}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {getPageNumbers().map((page, idx) => (
+                      <PaginationItem key={idx}>
+                        {page === '...' ? (
+                          <span className="px-3 py-2 text-muted-foreground">...</span>
+                        ) : (
+                          <PaginationLink
+                            onClick={() => handlePageChange(page as number)}
+                            isActive={currentPage === page}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="text-muted-foreground mb-2">

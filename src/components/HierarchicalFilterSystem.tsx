@@ -369,14 +369,14 @@ const ContextMultiSelect = ({
         {selected.length > 0 && (
           <button 
             onClick={clearAll}
-            className="text-xs text-destructive hover:text-destructive/80 font-medium"
+            className="text-xs text-primary hover:text-primary/80 font-medium"
           >
             Clear All
           </button>
         )}
       </div>
 
-      {/* Selected chips */}
+      {/* Selected chips - displayed above input */}
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map(item => (
@@ -397,7 +397,7 @@ const ContextMultiSelect = ({
         </div>
       )}
 
-      {/* Search/Add Input with Popover */}
+      {/* Search/Add Input with Popover - dropdown appears below */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="relative cursor-pointer">
@@ -416,15 +416,29 @@ const ContextMultiSelect = ({
         <PopoverContent 
           className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover border shadow-lg z-50" 
           align="start"
-          side="top"
+          side="bottom"
           sideOffset={4}
         >
+          {/* Search inside dropdown */}
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder={`Cari ${label.toLowerCase()}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-8 text-sm"
+                autoFocus
+              />
+            </div>
+          </div>
+          
           {/* Options */}
           <ScrollArea className="max-h-48">
             <div className="p-1">
               {filteredOptions.length === 0 ? (
                 <div className="py-4 text-center text-sm text-muted-foreground">
-                  {search ? "No options found" : "All options selected"}
+                  {search ? "Tidak ditemukan" : "Semua opsi terpilih"}
                 </div>
               ) : (
                 filteredOptions.map((option) => (

@@ -1,6 +1,7 @@
-import { Layers, MapPin, AlertTriangle, Zap } from "lucide-react";
+import { Layers, MapPin, AlertTriangle, Zap, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ClusterInfo, hazardReports } from "@/data/hazardReports";
+import { Separator } from "@/components/ui/separator";
 
 interface DuplicateClusterCardProps {
   cluster: ClusterInfo;
@@ -47,7 +48,7 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
       onClick={() => onViewDetail(cluster)}
     >
       <div className="p-4">
-        {/* Header - SCL ID with report count and cluster badges */}
+        {/* Header - SCL ID with report count and cluster badges + Similarity */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-500/5 group-hover:from-purple-500/30 group-hover:to-purple-500/10 transition-colors">
@@ -55,17 +56,20 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-purple-600 dark:text-purple-400 group-hover:text-purple-500 transition-colors">{sclId}</h3>
+                <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{sclId}</h3>
                 <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-destructive font-medium">{cluster.reportCount} laporan</span>
+                <span className="text-xs text-muted-foreground font-medium">{cluster.reportCount} laporan</span>
               </div>
               {/* Origin Cluster Badges */}
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0 font-mono">
                   {geoClusterId}
                 </Badge>
-                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 text-[10px] px-1.5 py-0 font-mono">
                   {lexClusterId}
+                </Badge>
+                <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 text-[10px] px-1.5 py-0 font-mono">
+                  {sclId}
                 </Badge>
               </div>
             </div>
@@ -74,14 +78,17 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
           <div className="text-right">
             <span className={`text-2xl font-bold ${
               similarityPercent >= 85 ? 'text-destructive' :
-              similarityPercent >= 75 ? 'text-warning' :
-              similarityPercent >= 70 ? 'text-yellow-500' : 'text-success'
+              similarityPercent >= 75 ? 'text-orange-500' :
+              similarityPercent >= 70 ? 'text-yellow-500' : 'text-emerald-500'
             }`}>
               {similarityPercent}%
             </span>
             <p className="text-[10px] text-muted-foreground">Similarity</p>
           </div>
         </div>
+
+        {/* Thin Separator */}
+        <Separator className="my-3" />
 
         {/* Location Info */}
         <div className="mb-3">
@@ -91,40 +98,44 @@ const DuplicateClusterCard = ({ cluster, onViewDetail }: DuplicateClusterCardPro
               <div className="text-xs">
                 <span className="font-medium text-foreground">{site}</span>
                 <span className="text-muted-foreground"> • {lokasi}</span>
+                <span className="text-muted-foreground"> • {detailLokasi}</span>
               </div>
             </div>
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap font-mono">
               {coords.lat}, {coords.long}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground ml-5 mt-0.5">{detailLokasi}</p>
         </div>
 
-        {/* Ketidaksesuaian Info */}
-        <div className="mb-3">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
-            <div className="text-xs flex-1">
-              <p className="font-semibold text-foreground">{ketidaksesuaian}</p>
-              <p className="text-muted-foreground mt-0.5">{subKetidaksesuaian}</p>
-            </div>
+        {/* Ketidaksesuaian Info with Image Placeholder */}
+        <div className="flex gap-3 mb-3">
+          {/* Image Placeholder */}
+          <div className="w-14 h-14 rounded-lg bg-muted/50 border border-border flex items-center justify-center shrink-0">
+            <ImageIcon className="w-6 h-6 text-muted-foreground/50" />
           </div>
-        </div>
-
-        {/* Quick Action Badge */}
-        <div className="mb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-1.5 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+              <div className="text-xs flex-1">
+                <p className="font-semibold text-foreground">{ketidaksesuaian}</p>
+                <p className="text-muted-foreground">{subKetidaksesuaian}</p>
+              </div>
+            </div>
+            {/* Quick Action Badge */}
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] mt-1">
               {quickAction}
             </Badge>
           </div>
         </div>
 
-        {/* Representative Description */}
-        <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 line-clamp-2">
-          {representativeDesc}
-        </p>
+        {/* Representative Description - Boxed */}
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            {representativeDesc}
+          </p>
+        </div>
       </div>
     </div>
   );
