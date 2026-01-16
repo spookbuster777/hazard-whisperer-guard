@@ -4,12 +4,11 @@ import {
   X, 
   Search,
   ChevronDown,
-  Building2,
+  Map,
   Navigation,
   Globe,
   Type,
   Brain,
-  Filter,
   RotateCcw,
   SlidersHorizontal
 } from "lucide-react";
@@ -288,31 +287,31 @@ const HierarchicalMultiSelect = ({
   );
 };
 
-// Physical Context Multi-Select Dropdown
+// Physical Context Multi-Select Dropdown (Improved UI like reference)
 const ContextMultiSelect = ({
   label,
   icon: Icon,
-  iconColor,
   options,
   selected,
   onChange,
   disabled = false,
-  disabledMessage = ""
+  disabledMessage = "",
+  placeholder = "Tambah..."
 }: {
   label: string;
   icon: React.ElementType;
-  iconColor: string;
   options: string[];
   selected: string[];
   onChange: (selected: string[]) => void;
   disabled?: boolean;
   disabledMessage?: string;
+  placeholder?: string;
 }) => {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
   const filteredOptions = options.filter(opt => 
-    opt.toLowerCase().includes(search.toLowerCase())
+    opt.toLowerCase().includes(search.toLowerCase()) && !selected.includes(opt)
   );
 
   const toggleItem = (item: string) => {
@@ -323,42 +322,29 @@ const ContextMultiSelect = ({
     }
   };
 
-  const displayText = selected.length === 0 
-    ? "All" 
-    : selected.length === 1 
-      ? selected[0] 
-      : `${selected.length} selected`;
-
-  const buttonContent = (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={disabled}
-      className={cn(
-        "w-full justify-between h-9 bg-background border-border",
-        !disabled && "hover:bg-muted/50",
-        disabled && "opacity-50 cursor-not-allowed",
-        selected.length > 0 && !disabled && "border-primary/50 bg-primary/5"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <Icon className={cn("w-4 h-4", disabled ? "text-muted-foreground" : iconColor)} />
-        <span className="text-sm truncate max-w-[120px]">{displayText}</span>
-      </div>
-      <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-    </Button>
-  );
+  const clearAll = () => onChange([]);
 
   if (disabled) {
     return (
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-muted-foreground">{label}</label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">{label}</span>
+          </div>
+        </div>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              {buttonContent}
+              <div className="relative">
+                <Input
+                  placeholder={placeholder}
+                  disabled
+                  className="h-9 text-sm bg-muted/30 border-dashed cursor-not-allowed"
+                />
+              </div>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent side="top">
               <p className="text-sm">{disabledMessage}</p>
             </TooltipContent>
           </Tooltip>
@@ -368,70 +354,93 @@ const ContextMultiSelect = ({
   }
 
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">{label}</label>
+    <div className="space-y-2">
+      {/* Label with Clear All */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {selected.length > 0 && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-primary/10 text-primary">
+              {selected.length}
+            </Badge>
+          )}
+        </div>
+        {selected.length > 0 && (
+          <button 
+            onClick={clearAll}
+            className="text-xs text-destructive hover:text-destructive/80 font-medium"
+          >
+            Clear All
+          </button>
+        )}
+      </div>
+
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map(item => (
+            <Badge 
+              key={item} 
+              variant="secondary" 
+              className="gap-1 text-xs bg-primary/10 text-primary border border-primary/20 pr-1 font-normal"
+            >
+              {item}
+              <button 
+                onClick={() => toggleItem(item)}
+                className="ml-0.5 p-0.5 hover:bg-primary/20 rounded"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Search/Add Input with Popover */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          {buttonContent}
+          <div className="relative cursor-pointer">
+            <Input
+              placeholder={placeholder}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!open) setOpen(true);
+              }}
+              onClick={() => setOpen(true)}
+              className="h-9 text-sm bg-background border-border hover:border-primary/50 transition-colors"
+            />
+          </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-64 p-0 bg-popover border shadow-lg z-50" 
+          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover border shadow-lg z-50" 
           align="start"
+          side="top"
           sideOffset={4}
         >
-          {/* Search */}
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                placeholder={`Search ${label.toLowerCase()}...`}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 text-sm"
-              />
-            </div>
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="px-2 py-1.5 border-b flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs px-2"
-              onClick={() => onChange(filteredOptions)}
-            >
-              Select All
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs px-2 text-muted-foreground"
-              onClick={() => onChange([])}
-            >
-              Clear All
-            </Button>
-          </div>
-
           {/* Options */}
           <ScrollArea className="max-h-48">
             <div className="p-1">
               {filteredOptions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  No options found
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  {search ? "No options found" : "All options selected"}
                 </div>
               ) : (
                 filteredOptions.map((option) => (
                   <button
                     key={option}
-                    onClick={() => toggleItem(option)}
+                    onClick={() => {
+                      toggleItem(option);
+                      setSearch("");
+                    }}
                     className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-left",
-                      "hover:bg-muted/50 transition-colors",
-                      selected.includes(option) && "bg-primary/10"
+                      "w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-left",
+                      "hover:bg-muted/50 transition-colors"
                     )}
                   >
                     <Checkbox
-                      checked={selected.includes(option)}
+                      checked={false}
                       className="h-4 w-4"
                     />
                     <span className="truncate">{option}</span>
@@ -442,32 +451,11 @@ const ContextMultiSelect = ({
           </ScrollArea>
         </PopoverContent>
       </Popover>
-
-      {/* Selected chips */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {selected.map(item => (
-            <Badge 
-              key={item} 
-              variant="secondary" 
-              className="gap-1 text-xs bg-muted/50 text-foreground pr-1"
-            >
-              {item}
-              <button 
-                onClick={() => toggleItem(item)}
-                className="ml-0.5 p-0.5 hover:bg-muted rounded"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
 
-// Active Filter Summary Component
+// Active Filter Summary Component - Only shows Cluster filters with compact badges
 const ActiveFilterSummary = ({
   filterState,
   onClearAll
@@ -475,81 +463,49 @@ const ActiveFilterSummary = ({
   filterState: HierarchicalFilterState;
   onClearAll: () => void;
 }) => {
-  const hasActiveFilters = 
+  // Only show if cluster filters are active
+  const hasActiveClusterFilters = 
     filterState.cluster.geo.codes.length > 0 ||
     filterState.cluster.lexical.codes.length > 0 ||
-    filterState.cluster.semantic.codes.length > 0 ||
-    filterState.site.length > 0 ||
-    filterState.location.length > 0 ||
-    filterState.detailLocation.length > 0;
+    filterState.cluster.semantic.codes.length > 0;
 
-  if (!hasActiveFilters) return null;
+  if (!hasActiveClusterFilters) return null;
 
-  const FilterTag = ({ label, values, colorClass }: { label: string; values: string[]; colorClass: string }) => {
-    if (values.length === 0) return null;
-    return (
-      <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm", colorClass)}>
-        <span className="font-medium opacity-70">{label}:</span>
-        <span className="font-semibold">{values.length > 2 ? `${values.slice(0, 2).join(", ")}...` : values.join(", ")}</span>
-      </div>
-    );
+  const allClusterCodes = [
+    ...filterState.cluster.geo.codes,
+    ...filterState.cluster.lexical.codes,
+    ...filterState.cluster.semantic.codes
+  ];
+
+  const getClusterBadgeStyle = (code: string) => {
+    if (code.startsWith("GCL")) return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30";
+    if (code.startsWith("LCL")) return "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30";
+    if (code.startsWith("SCL")) return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30";
+    return "bg-muted text-muted-foreground";
   };
 
   return (
-    <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Filter className="w-4 h-4 text-primary" />
-          </div>
-          <span className="text-sm font-semibold text-foreground">Active Filters</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 px-3 text-xs font-medium border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50"
-          onClick={onClearAll}
-        >
-          <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-          Clear All
-        </Button>
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap gap-1.5">
+        {allClusterCodes.map(code => (
+          <Badge 
+            key={code} 
+            variant="outline"
+            className={cn("text-xs font-mono", getClusterBadgeStyle(code))}
+          >
+            {code}
+          </Badge>
+        ))}
       </div>
-      
-      <div className="flex flex-wrap gap-2">
-        {/* Physical Context Filters - Displayed first */}
-        <FilterTag 
-          label="Site" 
-          values={filterState.site} 
-          colorClass="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
-        />
-        <FilterTag 
-          label="Location" 
-          values={filterState.location} 
-          colorClass="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-        />
-        <FilterTag 
-          label="Detail" 
-          values={filterState.detailLocation} 
-          colorClass="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-        />
-        
-        {/* Cluster Filters - Displayed after physical context */}
-        <FilterTag 
-          label="Geo" 
-          values={filterState.cluster.geo.codes} 
-          colorClass="bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-        />
-        <FilterTag 
-          label="Lexical" 
-          values={filterState.cluster.lexical.codes} 
-          colorClass="bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300"
-        />
-        <FilterTag 
-          label="Semantic" 
-          values={filterState.cluster.semantic.codes} 
-          colorClass="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
-        />
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+        onClick={onClearAll}
+      >
+        <RotateCcw className="w-3 h-3 mr-1" />
+        Reset
+      </Button>
     </div>
   );
 };
@@ -691,56 +647,56 @@ const HierarchicalFilterSystem = ({
   const isLocationDisabled = filterState.site.length === 0;
   const isDetailLocationDisabled = filterState.location.length === 0;
 
+  const isSemanticActive = filterState.cluster.semantic.codes.length > 0;
+
   return (
     <div className="flex gap-6">
-      {/* Left Sidebar - Physical Context Filters Panel */}
-      <div className="w-60 shrink-0">
-        <div className="bg-card border border-border rounded-lg p-4 space-y-4 sticky top-4">
+      {/* Left Sidebar - Location Filters Panel */}
+      <div className="w-64 shrink-0">
+        <div className="bg-card border border-border rounded-xl p-5 space-y-5 sticky top-4 shadow-sm">
           {/* Panel Header */}
-          <div className="flex items-center gap-2 pb-2 border-b border-border">
-            <Building2 className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Physical Context</span>
+          <div className="flex items-center gap-3 pb-3 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Map className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">Lokasi</span>
+              <p className="text-xs text-muted-foreground">Kosong = Semua area</p>
+            </div>
           </div>
-          
-          {/* Empty state info */}
-          {filterState.site.length === 0 && filterState.location.length === 0 && filterState.detailLocation.length === 0 && (
-            <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-              Empty = All areas selected
-            </p>
-          )}
 
           {/* Site Filter */}
           <ContextMultiSelect
             label="Site"
-            icon={Building2}
-            iconColor="text-blue-500"
+            icon={MapPin}
             options={siteOptions}
             selected={filterState.site}
             onChange={handleSiteChange}
+            placeholder="Tambah site..."
           />
 
           {/* Location Filter */}
           <ContextMultiSelect
             label="Location"
             icon={MapPin}
-            iconColor="text-emerald-500"
             options={availableLocations}
             selected={filterState.location}
             onChange={handleLocationChange}
             disabled={isLocationDisabled}
-            disabledMessage="Select Site first"
+            disabledMessage="Pilih Site terlebih dahulu"
+            placeholder="Tambah location..."
           />
 
           {/* Detail Location Filter */}
           <ContextMultiSelect
             label="Detail Location"
             icon={Navigation}
-            iconColor="text-amber-500"
             options={availableDetailLocations}
             selected={filterState.detailLocation}
             onChange={handleDetailLocationChange}
             disabled={isDetailLocationDisabled}
-            disabledMessage="Select Location first"
+            disabledMessage="Pilih Location terlebih dahulu"
+            placeholder="Tambah detail..."
           />
         </div>
       </div>
@@ -806,64 +762,79 @@ const HierarchicalFilterSystem = ({
               placeholder="Select semantic cluster..."
             />
 
-            {/* Similarity Range Slider */}
+            {/* Similarity Range Slider - Only active when Semantic Cluster is selected */}
             {onSimilarityRangeChange && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "gap-2 h-9 px-3 min-w-[140px]",
-                      (similarityRange[0] > 0 || similarityRange[1] < 100) && "border-primary/50 bg-primary/10"
-                    )}
-                  >
-                    <SlidersHorizontal className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Similarity</span>
-                    {(similarityRange[0] > 0 || similarityRange[1] < 100) && (
-                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                        {similarityRange[0]}-{similarityRange[1]}%
-                      </Badge>
-                    )}
-                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-72 p-4 bg-popover border shadow-lg z-50" 
-                  align="start"
-                  sideOffset={4}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">Similarity Range</span>
-                      <span className="text-sm text-muted-foreground font-mono">
-                        {similarityRange[0]}% - {similarityRange[1]}%
-                      </span>
-                    </div>
-                    <Slider
-                      value={similarityRange}
-                      onValueChange={(val) => onSimilarityRangeChange(val as [number, number])}
-                      min={0}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>0%</span>
-                      <span>50%</span>
-                      <span>100%</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={() => onSimilarityRangeChange([0, 100])}
-                    >
-                      Reset to All
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!isSemanticActive}
+                            className={cn(
+                              "gap-2 h-9 px-3 min-w-[140px]",
+                              !isSemanticActive && "opacity-50 cursor-not-allowed",
+                              isSemanticActive && (similarityRange[0] > 0 || similarityRange[1] < 100) && "border-primary/50 bg-primary/10"
+                            )}
+                          >
+                            <SlidersHorizontal className={cn("w-4 h-4", isSemanticActive ? "text-primary" : "text-muted-foreground")} />
+                            <span className="text-sm font-medium">Similarity</span>
+                            {isSemanticActive && (similarityRange[0] > 0 || similarityRange[1] < 100) && (
+                              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                {similarityRange[0]}-{similarityRange[1]}%
+                              </Badge>
+                            )}
+                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                          className="w-72 p-4 bg-popover border shadow-lg z-50" 
+                          align="start"
+                          sideOffset={4}
+                        >
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-foreground">Similarity Range</span>
+                              <span className="text-sm text-muted-foreground font-mono">
+                                {similarityRange[0]}% - {similarityRange[1]}%
+                              </span>
+                            </div>
+                            <Slider
+                              value={similarityRange}
+                              onValueChange={(val) => onSimilarityRangeChange(val as [number, number])}
+                              min={0}
+                              max={100}
+                              step={5}
+                              className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>0%</span>
+                              <span>50%</span>
+                              <span>100%</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full text-xs"
+                              onClick={() => onSimilarityRangeChange([0, 100])}
+                            >
+                              Reset to All
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </span>
+                  </TooltipTrigger>
+                  {!isSemanticActive && (
+                    <TooltipContent>
+                      <p className="text-sm">Pilih Semantic Cluster terlebih dahulu</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
