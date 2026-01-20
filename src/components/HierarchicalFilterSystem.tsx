@@ -149,23 +149,19 @@ const HierarchicalMultiSelect = ({
       size="sm"
       disabled={disabled}
       className={cn(
-        "gap-2 h-9 px-3 min-w-[160px] transition-all duration-200",
-        "hover:shadow-sm hover:border-primary/40",
-        isActive && !disabled && `${borderColor} ${bgColor} shadow-sm`,
+        "gap-2 h-9 px-3 min-w-[160px]",
+        isActive && !disabled && `${borderColor} ${bgColor}`,
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      <Icon className={cn("w-4 h-4 transition-colors", disabled ? "text-muted-foreground" : iconColor)} />
+      <Icon className={cn("w-4 h-4", disabled ? "text-muted-foreground" : iconColor)} />
       <span className="text-sm font-medium">{label}</span>
       {selected.length > 0 && (
-        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs font-semibold bg-background/50">
+        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
           {selected.length}
         </Badge>
       )}
-      <ChevronDown className={cn(
-        "w-3.5 h-3.5 text-muted-foreground ml-auto transition-transform duration-200",
-        open && "rotate-180"
-      )} />
+      <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
     </Button>
   );
 
@@ -176,8 +172,8 @@ const HierarchicalMultiSelect = ({
           <TooltipTrigger asChild>
             {buttonContent}
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="bg-foreground text-background text-xs">
-            <p>{disabledMessage}</p>
+          <TooltipContent>
+            <p className="text-sm">{disabledMessage}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -190,29 +186,29 @@ const HierarchicalMultiSelect = ({
         {buttonContent}
       </PopoverTrigger>
       <PopoverContent 
-        className="w-72 p-0 bg-popover border border-border/80 shadow-xl rounded-xl z-50 overflow-hidden" 
+        className="w-64 p-0 bg-popover border shadow-lg z-50" 
         align="start"
-        sideOffset={6}
+        sideOffset={4}
       >
         {/* Search */}
-        <div className="p-3 border-b border-border/50 bg-muted/30">
+        <div className="p-2 border-b">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder={placeholder || `Search ${label.toLowerCase()}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 pl-9 text-sm bg-background border-border/50 rounded-lg focus:ring-2 focus:ring-primary/20"
+              className="h-8 pl-8 text-sm"
             />
           </div>
         </div>
         
         {/* Quick Actions */}
-        <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between bg-muted/20">
+        <div className="px-2 py-1.5 border-b flex items-center justify-between">
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs px-2.5 hover:bg-primary/10 hover:text-primary font-medium"
+            className="h-6 text-xs px-2"
             onClick={() => onChange(filteredOptions)}
           >
             Select All
@@ -220,7 +216,7 @@ const HierarchicalMultiSelect = ({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-6 text-xs px-2 text-muted-foreground"
             onClick={() => onChange([])}
           >
             Clear All
@@ -228,10 +224,10 @@ const HierarchicalMultiSelect = ({
         </div>
 
         {/* Options */}
-        <ScrollArea className="max-h-52">
-          <div className="p-1.5">
+        <ScrollArea className="max-h-48">
+          <div className="p-1">
             {filteredOptions.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
+              <div className="py-6 text-center text-sm text-muted-foreground">
                 No options found
               </div>
             ) : (
@@ -240,16 +236,16 @@ const HierarchicalMultiSelect = ({
                   key={option}
                   onClick={() => toggleItem(option)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left",
-                    "hover:bg-muted/60 transition-all duration-150",
-                    selected.includes(option) && `${bgColor} border border-transparent`
+                    "w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm text-left",
+                    "hover:bg-muted/50 transition-colors",
+                    selected.includes(option) && `${bgColor}`
                   )}
                 >
                   <Checkbox
                     checked={selected.includes(option)}
-                    className="h-4 w-4 rounded border-2"
+                    className="h-4 w-4"
                   />
-                  <span className="truncate font-mono text-foreground">{option}</span>
+                  <span className="truncate font-mono">{option}</span>
                 </button>
               ))
             )}
@@ -258,13 +254,13 @@ const HierarchicalMultiSelect = ({
 
         {/* Selected chips */}
         {selected.length > 0 && (
-          <div className="p-3 border-t border-border/50 bg-gradient-to-t from-muted/40 to-transparent">
-            <div className="flex flex-wrap gap-1.5">
+          <div className="p-2 border-t bg-muted/30">
+            <div className="flex flex-wrap gap-1">
               {selected.slice(0, 3).map(item => (
                 <Badge 
                   key={item} 
                   variant="secondary" 
-                  className="gap-1.5 text-xs font-mono pr-1 bg-background border border-border/50 shadow-sm"
+                  className="gap-1 text-xs font-mono pr-1"
                 >
                   {item}
                   <button 
@@ -272,14 +268,14 @@ const HierarchicalMultiSelect = ({
                       e.stopPropagation();
                       toggleItem(item);
                     }}
-                    className="ml-0.5 p-0.5 hover:bg-destructive/20 hover:text-destructive rounded transition-colors"
+                    className="ml-0.5 p-0.5 hover:bg-muted rounded"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </Badge>
               ))}
               {selected.length > 3 && (
-                <Badge variant="outline" className="text-xs font-medium">
+                <Badge variant="outline" className="text-xs">
                   +{selected.length - 3} more
                 </Badge>
               )}
@@ -333,7 +329,7 @@ const ContextMultiSelect = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-muted-foreground/50" />
+            <Icon className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium text-muted-foreground">{label}</span>
           </div>
         </div>
@@ -344,12 +340,12 @@ const ContextMultiSelect = ({
                 <Input
                   placeholder={placeholder}
                   disabled
-                  className="h-9 text-sm bg-muted/20 border-dashed border-muted-foreground/20 cursor-not-allowed"
+                  className="h-9 text-sm bg-muted/30 border-dashed cursor-not-allowed"
                 />
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-foreground text-background text-xs">
-              <p>{disabledMessage}</p>
+            <TooltipContent side="top">
+              <p className="text-sm">{disabledMessage}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -358,14 +354,14 @@ const ContextMultiSelect = ({
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {/* Label with Clear All */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4 text-primary/70" />
-          <span className="text-sm font-semibold text-foreground">{label}</span>
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">{label}</span>
           {selected.length > 0 && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-primary/10 text-primary font-semibold">
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-primary/10 text-primary">
               {selected.length}
             </Badge>
           )}
@@ -373,7 +369,7 @@ const ContextMultiSelect = ({
         {selected.length > 0 && (
           <button 
             onClick={clearAll}
-            className="text-xs text-primary hover:text-primary/80 font-semibold transition-colors"
+            className="text-xs text-primary hover:text-primary/80 font-medium"
           >
             Clear All
           </button>
@@ -387,12 +383,12 @@ const ContextMultiSelect = ({
             <Badge 
               key={item} 
               variant="secondary" 
-              className="gap-1.5 text-xs bg-primary/10 text-primary border border-primary/20 pr-1 font-medium shadow-sm"
+              className="gap-1 text-xs bg-primary/10 text-primary border border-primary/20 pr-1 font-normal"
             >
               {item}
               <button 
                 onClick={() => toggleItem(item)}
-                className="ml-0.5 p-0.5 hover:bg-primary/20 rounded transition-colors"
+                className="ml-0.5 p-0.5 hover:bg-primary/20 rounded"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -404,8 +400,7 @@ const ContextMultiSelect = ({
       {/* Search/Add Input with Popover - dropdown appears below */}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div className="relative cursor-pointer group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          <div className="relative cursor-pointer">
             <Input
               placeholder={placeholder}
               value={search}
@@ -414,21 +409,35 @@ const ContextMultiSelect = ({
                 if (!open) setOpen(true);
               }}
               onClick={() => setOpen(true)}
-              className="h-9 pl-9 text-sm bg-background border-border hover:border-primary/50 focus:border-primary transition-all duration-200 rounded-lg"
+              className="h-9 text-sm bg-background border-border hover:border-primary/50 transition-colors"
             />
           </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover border border-border/80 shadow-xl rounded-xl z-50 overflow-hidden" 
+          className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover border shadow-lg z-50" 
           align="start"
           side="bottom"
-          sideOffset={6}
+          sideOffset={4}
         >
+          {/* Search inside dropdown */}
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder={`Cari ${label.toLowerCase()}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-8 text-sm"
+                autoFocus
+              />
+            </div>
+          </div>
+          
           {/* Options */}
           <ScrollArea className="max-h-48">
-            <div className="p-1.5">
+            <div className="p-1">
               {filteredOptions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+                <div className="py-4 text-center text-sm text-muted-foreground">
                   {search ? "Tidak ditemukan" : "Semua opsi terpilih"}
                 </div>
               ) : (
@@ -440,13 +449,15 @@ const ContextMultiSelect = ({
                       setSearch("");
                     }}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left",
-                      "hover:bg-primary/10 transition-all duration-150"
+                      "w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-left",
+                      "hover:bg-muted/50 transition-colors"
                     )}
                   >
-                    <div className="w-4 h-4 rounded border-2 border-muted-foreground/30 flex items-center justify-center">
-                    </div>
-                    <span className="truncate text-foreground">{option}</span>
+                    <Checkbox
+                      checked={false}
+                      className="h-4 w-4"
+                    />
+                    <span className="truncate">{option}</span>
                   </button>
                 ))
               )}
@@ -655,15 +666,15 @@ const HierarchicalFilterSystem = ({
   return (
     <div className="flex gap-6">
       {/* Left Sidebar - Location Filters Panel */}
-      <div className="w-72 shrink-0">
-        <div className="bg-card border border-border/80 rounded-2xl p-5 space-y-5 sticky top-4 shadow-lg shadow-black/5">
+      <div className="w-64 shrink-0">
+        <div className="bg-card border border-border rounded-xl p-5 space-y-5 sticky top-4 shadow-sm">
           {/* Panel Header */}
-          <div className="flex items-center gap-3 pb-4 border-b border-border/50">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-inner">
-              <Map className="w-5 h-5 text-primary" />
+          <div className="flex items-center gap-3 pb-3 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Map className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <span className="text-base font-bold text-foreground">Lokasi</span>
+              <span className="text-sm font-semibold text-foreground">Lokasi</span>
               <p className="text-xs text-muted-foreground">Kosong = Semua area</p>
             </div>
           </div>
@@ -675,7 +686,7 @@ const HierarchicalFilterSystem = ({
             options={siteOptions}
             selected={filterState.site}
             onChange={handleSiteChange}
-            placeholder="Cari atau tambah site..."
+            placeholder="Tambah site..."
           />
 
           {/* Location Filter */}
@@ -687,7 +698,7 @@ const HierarchicalFilterSystem = ({
             onChange={handleLocationChange}
             disabled={isLocationDisabled}
             disabledMessage="Pilih Site terlebih dahulu"
-            placeholder="Cari atau tambah location..."
+            placeholder="Tambah location..."
           />
 
           {/* Detail Location Filter */}
@@ -699,7 +710,7 @@ const HierarchicalFilterSystem = ({
             onChange={handleDetailLocationChange}
             disabled={isDetailLocationDisabled}
             disabledMessage="Pilih Location terlebih dahulu"
-            placeholder="Cari atau tambah detail..."
+            placeholder="Tambah detail..."
           />
         </div>
       </div>
@@ -707,17 +718,17 @@ const HierarchicalFilterSystem = ({
       {/* Right Content Area */}
       <div className="flex-1 space-y-4">
         {/* Top Filter Bar - Search + Cluster Filters */}
-        <div className="bg-card border border-border/80 rounded-xl p-4 shadow-sm">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-3 flex-wrap">
             {/* Search Bar */}
             {onSearchChange && (
-              <div className="relative flex-1 min-w-[280px] max-w-md group">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <div className="relative flex-1 min-w-[280px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search clusters, descriptions, locations..."
                   value={searchTerm}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className="pl-10 h-10 bg-background border-border/60 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="pl-10 h-9 bg-background"
                 />
               </div>
             )}
