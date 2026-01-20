@@ -149,15 +149,26 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
         onSearchChange={setSearchTerm}
       >
         {/* Results count */}
-        <div className="mb-4 text-sm text-muted-foreground">
-          Menampilkan {paginatedClusters.length} dari {filteredClusters.length} cluster
-          {filteredClusters.length !== clusters.length && ` (total ${clusters.length})`}
+        <div className="mb-5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">
+              {filteredClusters.length} cluster
+            </span>
+            {filteredClusters.length !== clusters.length && (
+              <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+                dari {clusters.length} total
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Halaman {currentPage} dari {totalPages || 1}
+          </span>
         </div>
 
         {/* Cluster Grid */}
         {paginatedClusters.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
               {paginatedClusters.map(cluster => (
                 <DuplicateClusterCard 
                   key={cluster.id} 
@@ -169,40 +180,42 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-6 flex justify-center">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                    
-                    {getPageNumbers().map((page, idx) => (
-                      <PaginationItem key={idx}>
-                        {page === '...' ? (
-                          <span className="px-3 py-2 text-muted-foreground">...</span>
-                        ) : (
-                          <PaginationLink
-                            onClick={() => handlePageChange(page as number)}
-                            isActive={currentPage === page}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        )}
+              <div className="mt-8 flex justify-center">
+                <div className="bg-card border border-border/60 rounded-xl p-1.5 shadow-sm">
+                  <Pagination>
+                    <PaginationContent className="gap-1">
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          className={`rounded-lg transition-all ${currentPage === 1 ? "pointer-events-none opacity-40" : "cursor-pointer hover:bg-primary/10 hover:text-primary"}`}
+                        />
                       </PaginationItem>
-                    ))}
-                    
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+                      
+                      {getPageNumbers().map((page, idx) => (
+                        <PaginationItem key={idx}>
+                          {page === '...' ? (
+                            <span className="px-2 py-2 text-muted-foreground">...</span>
+                          ) : (
+                            <PaginationLink
+                              onClick={() => handlePageChange(page as number)}
+                              isActive={currentPage === page}
+                              className={`cursor-pointer rounded-lg min-w-[36px] transition-all ${currentPage === page ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-muted'}`}
+                            >
+                              {page}
+                            </PaginationLink>
+                          )}
+                        </PaginationItem>
+                      ))}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          className={`rounded-lg transition-all ${currentPage === totalPages ? "pointer-events-none opacity-40" : "cursor-pointer hover:bg-primary/10 hover:text-primary"}`}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               </div>
             )}
           </>
