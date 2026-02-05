@@ -1,5 +1,5 @@
- import { useState, useCallback } from "react";
- import { X, Star, User, MapPin, FileText, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, Users, Image as ImageIcon, ArrowLeft, Copy, Check, AlertTriangle } from "lucide-react";
+ import { useState, useCallback, useEffect } from "react";
+ import { X, Star, User, MapPin, FileText, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, Users, Image as ImageIcon, ArrowLeft, Copy, Check, AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Badge } from "@/components/ui/badge";
  import { ScrollArea } from "@/components/ui/scroll-area";
@@ -7,15 +7,27 @@
  import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
  import { Separator } from "@/components/ui/separator";
  import { toast } from "sonner";
+ import { Progress } from "@/components/ui/progress";
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+ import { Textarea } from "@/components/ui/textarea";
  
- // Generate mock distance scores
+ const AUTO_CONFIRM_DURATION = 60;
+ 
  const generateDistanceScores = () => ({
    imageDistance: Math.floor(Math.random() * 900000000) + 100000000,
    descriptionDistance: Math.floor(Math.random() * 90000000) + 10000000,
    locationDescDistance: Math.floor(Math.random() * 900000000) + 100000000,
  });
  
- // Copy ID Button Component
+ type AnnotationStatus = 'pending' | 'duplicate' | 'not_duplicate' | 'auto_confirmed';
+ 
+ interface AnnotationData {
+   status: AnnotationStatus;
+   notes?: string;
+   queuedForLabeling?: boolean;
+ }
+ 
  const CopyIdButton = ({ id }: { id: string }) => {
    const [copied, setCopied] = useState(false);
    
@@ -41,7 +53,6 @@
    );
  };
  
- // Analysis Section Component
  const AnalysisSection = ({ 
    report, 
    semanticScore,
@@ -56,7 +67,6 @@
  
    return (
      <div className="space-y-3">
-       {/* Semantic Analysis - Always visible */}
        <div className="p-3 rounded-lg bg-card border border-border">
          <div className="flex items-center gap-2 mb-3">
            <Brain className="w-4 h-4 text-purple-500" />
@@ -67,7 +77,6 @@
          </div>
          
          <div className="space-y-3">
-           {/* Interpretasi Makna */}
            <div>
              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
                <span>🧠</span> Interpretasi Makna
@@ -77,7 +86,6 @@
              </p>
            </div>
  
-           {/* Visual Terdeteksi */}
            <div>
              <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
                <span>✨</span> Visual Terdeteksi
@@ -92,7 +100,6 @@
              </div>
            </div>
  
-           {/* Distance Scores */}
            <div className="pt-2 border-t border-border space-y-2">
              <p className="text-xs text-muted-foreground mb-2">Distance Scores</p>
              <div className="space-y-1.5">
@@ -113,7 +120,6 @@
          </div>
        </div>
  
-       {/* Geo Analysis - Expandable */}
        <Collapsible open={geoOpen} onOpenChange={setGeoOpen}>
          <div className="rounded-lg border border-border overflow-hidden">
            <CollapsibleTrigger asChild>
@@ -152,7 +158,6 @@
          </div>
        </Collapsible>
  
-       {/* Lexical Analysis - Expandable */}
        <Collapsible open={lexicalOpen} onOpenChange={setLexicalOpen}>
          <div className="rounded-lg border border-border overflow-hidden">
            <CollapsibleTrigger asChild>
@@ -203,47 +208,128 @@
  
  const HazardDuplicateFloatingPanel = ({ report, onClose }: HazardDuplicateFloatingPanelProps) => {
    const cluster = reportClusters.find(c => c.id === report.cluster);
-   
-   const clusterReports = report.cluster 
+ 
+   const clusterReports = report.cluster
      ? hazardReports.filter(r => r.cluster === report.cluster)
      : [];
-   
+ 
    const representativeReport = clusterReports.length > 0 ? clusterReports[0] : null;
-   
-   const semanticScore = report.duplicateScores ? Math.round(report.duplicateScores.semantic * 100) : 0;
-   const repSemanticScore = representativeReport?.duplicateScores ? Math.round(representativeReport.duplicateScores.semantic * 100) : semanticScore;
+   const duplicateReports = clusterReports.filter(r => r.id !== representativeReport?.id);
  
-   const isSameSite = representativeReport?.site === report.site;
-   const isSameLocation = representativeReport?.lokasiArea === report.lokasiArea;
-   const bothHaveImages = true;
+   const [selectedComparisonId, setSelectedComparisonId] = useState<string | null>(
+     duplicateReports.length > 0 ? duplicateReports[0].id : null
+   );
+   const selectedComparison = duplicateReports.find(r => r.id === selectedComparisonId) || null;
  
-   const distanceScores = generateDistanceScores();
-   const repDistanceScores = generateDistanceScores();
+   const [sortBy, setSortBy] = useState<'semantic' | 'geo' | 'lexical'>('semantic');
+   const [annotations, setAnnotations] = useState<Record<string, AnnotationData>>({});
+   const [timers, setTimers] = useState<Record<string, number>>({});
+   const [showAnnotationDialog, setShowAnnotationDialog] = useState(false);
+   const [annotationNotes, setAnnotationNotes] = useState("");
+   const [pendingAnnotation, setPendingAnnotation] = useState<string | null>(null);
  
-   const handleCopyCluster = useCallback((clusterId: string) => {
-     navigator.clipboard.writeText(clusterId);
-     toast.success("Cluster ID berhasil disalin!");
-   }, []);
+   useEffect(() => {
+     const initialTimers: Record<string, number> = {};
+     duplicateReports.forEach(r => {
+       if (!annotations[r.id]) {
+         initialTimers[r.id] = AUTO_CONFIRM_DURATION;
+       }
+     });
+     setTimers(prev => ({ ...prev, ...initialTimers }));
+   }, [duplicateReports.length]);
  
-   // Report Card Component
-   const ReportCard = ({ 
-     r, 
-     isRepresentative = false, 
+   useEffect(() => {
+     const interval = setInterval(() => {
+       setTimers(prev => {
+         const updated = { ...prev };
+         Object.keys(updated).forEach(id => {
+           if (!annotations[id] && updated[id] > 0) {
+             updated[id] -= 1;
+             if (updated[id] === 0) {
+               setAnnotations(a => ({
+                 ...a,
+                 [id]: { status: 'auto_confirmed', notes: 'Auto-confirmed by system' }
+               }));
+             }
+           }
+         });
+         return updated;
+       });
+     }, 1000);
+     return () => clearInterval(interval);
+   }, [annotations]);
+ 
+   const sortedDuplicates = [...duplicateReports].sort((a, b) => {
+     const aScore = a.duplicateScores?.[sortBy] || 0;
+     const bScore = b.duplicateScores?.[sortBy] || 0;
+     return bScore - aScore;
+   });
+ 
+   const compDistanceScores = generateDistanceScores();
+ 
+   const handleAnnotate = (reportId: string, status: 'duplicate' | 'not_duplicate') => {
+     if (status === 'not_duplicate') {
+       setPendingAnnotation(reportId);
+       setShowAnnotationDialog(true);
+     } else {
+       setAnnotations(prev => ({
+         ...prev,
+         [reportId]: { status: 'duplicate' }
+       }));
+       toast.success("Ditandai sebagai Duplicate");
+     }
+   };
+ 
+   const handleSubmitAnnotation = () => {
+     if (pendingAnnotation) {
+       setAnnotations(prev => ({
+         ...prev,
+         [pendingAnnotation]: {
+           status: 'not_duplicate',
+           notes: annotationNotes,
+           queuedForLabeling: true
+         }
+       }));
+       toast.success("Ditandai sebagai Bukan Duplicate dan masuk antrian labeling");
+       setShowAnnotationDialog(false);
+       setAnnotationNotes("");
+       setPendingAnnotation(null);
+     }
+   };
+ 
+   const getAnnotationBadge = (reportId: string) => {
+     const annotation = annotations[reportId];
+     if (!annotation) return null;
+ 
+     switch (annotation.status) {
+       case 'duplicate':
+         return <Badge className="bg-green-500 text-white text-xs gap-1"><CheckCircle2 className="w-3 h-3" />Duplicate</Badge>;
+       case 'not_duplicate':
+         return <Badge className="bg-red-500 text-white text-xs gap-1"><XCircle className="w-3 h-3" />Bukan Duplicate</Badge>;
+       case 'auto_confirmed':
+         return <Badge className="bg-blue-500 text-white text-xs gap-1"><Clock className="w-3 h-3" />Auto-confirmed</Badge>;
+       default:
+         return null;
+     }
+   };
+ 
+   const ReportCard = ({
+     r,
+     isRepresentative = false,
      showAnalysis = false,
      title = "Laporan",
-     scores,
      distScores
-   }: { 
-     r: HazardReport; 
-     isRepresentative?: boolean; 
+   }: {
+     r: HazardReport;
+     isRepresentative?: boolean;
      showAnalysis?: boolean;
      title?: string;
-     scores: { semantic: number };
      distScores: { imageDistance: number; descriptionDistance: number; locationDescDistance: number };
    }) => {
+     const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
+ 
      return (
        <div className="space-y-4">
-         {/* Representative Badge */}
          {isRepresentative && (
            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
              <Star className="w-3 h-3 fill-current" />
@@ -251,7 +337,6 @@
            </Badge>
          )}
  
-         {/* Report Header with Copy ID */}
          <div className="flex items-center justify-between gap-2">
            <div className="flex items-center gap-2">
              <FileText className="w-4 h-4 text-muted-foreground" />
@@ -260,42 +345,6 @@
            <CopyIdButton id={r.id} />
          </div>
  
-         {/* Location Summary Line (like card reference) */}
-         <div className="p-3 rounded-lg bg-muted/30 border border-border">
-           <div className="flex items-start justify-between gap-2 mb-2">
-             <div className="flex items-center gap-1.5 text-sm text-foreground">
-               <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
-               <span className="font-medium">{r.site} • {r.lokasiArea} • {r.detailLokasi}</span>
-             </div>
-             <span className="text-xs text-muted-foreground font-mono shrink-0">-3.7893, 114.7631</span>
-           </div>
-           
-           <Separator className="my-2" />
-           
-           {/* Ketidaksesuaian */}
-           <div className="space-y-1">
-             <div className="flex items-start gap-2">
-               <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-               <div>
-                 <p className="text-sm font-medium text-foreground">{r.ketidaksesuaian}</p>
-                 <p className="text-xs text-muted-foreground">{r.subKetidaksesuaian}</p>
-               </div>
-             </div>
-           </div>
-           
-           {/* Quick Action */}
-           <div className="mt-3">
-             <Button 
-               variant="outline" 
-               size="sm" 
-               className="bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20 text-xs"
-             >
-               {r.quickAction || "Warning Letter"}
-             </Button>
-           </div>
-         </div>
- 
-         {/* Date & Reporter */}
          <div className="flex items-center gap-4 text-sm text-muted-foreground">
            <div className="flex items-center gap-1">
              <Calendar className="w-4 h-4" />
@@ -307,23 +356,34 @@
            </div>
          </div>
  
-         {/* Cluster Semantic */}
+         <div className="grid grid-cols-2 gap-3">
+           <div>
+             <p className="text-xs text-muted-foreground mb-1">Site</p>
+             <div className="flex items-center gap-1.5">
+               <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+               <span className="text-sm font-medium text-foreground">{r.site}</span>
+             </div>
+           </div>
+           <div>
+             <p className="text-xs text-muted-foreground mb-1">Lokasi</p>
+             <div className="flex items-center gap-1.5">
+               <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+               <span className="text-sm font-medium text-foreground">{r.lokasiArea}</span>
+             </div>
+           </div>
+         </div>
+ 
          <div>
-           <p className="text-xs text-muted-foreground mb-1">Cluster Semantic</p>
+           <p className="text-xs text-muted-foreground mb-1">Asal Cluster</p>
            {r.cluster ? (
-             <button 
-               onClick={() => handleCopyCluster(r.cluster!)}
-               className="flex items-center gap-1.5 px-2 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors"
-             >
-               <span className="text-sm font-medium text-purple-600">⊕ {r.cluster}</span>
-               <Copy className="w-3 h-3 text-purple-600" />
-             </button>
+             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+               ⊕ {r.cluster}
+             </Badge>
            ) : (
              <span className="text-sm text-muted-foreground">-</span>
            )}
          </div>
  
-         {/* Finding Description */}
          <div className="p-3 rounded-lg bg-muted/30 border border-border">
            <div className="flex items-center gap-2 mb-2 text-muted-foreground">
              <FileText className="w-4 h-4" />
@@ -334,7 +394,6 @@
            </p>
          </div>
  
-         {/* Finding Image Placeholder */}
          <div className="p-3 rounded-lg bg-muted/30 border border-border">
            <div className="flex items-center gap-2 mb-2 text-muted-foreground">
              <ImageIcon className="w-4 h-4" />
@@ -345,11 +404,10 @@
            </div>
          </div>
  
-         {/* Analysis Section */}
          {showAnalysis && (
            <AnalysisSection 
              report={r} 
-             semanticScore={scores.semantic} 
+             semanticScore={semanticVal} 
              distanceScores={distScores}
            />
          )}
@@ -357,17 +415,98 @@
      );
    };
  
+   const SimilarReportItem = ({ r }: { r: HazardReport }) => {
+     const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
+     const geoVal = 100;
+     const lexicalVal = 100;
+     const isSelected = selectedComparisonId === r.id;
+     const annotation = annotations[r.id];
+     const timer = timers[r.id] || 0;
+     const timerProgress = (timer / AUTO_CONFIRM_DURATION) * 100;
+ 
+     return (
+       <div
+         className={`p-3 rounded-lg border cursor-pointer transition-all ${
+           isSelected
+             ? 'border-primary bg-primary/5'
+             : 'border-border bg-card hover:border-primary/50'
+         }`}
+         onClick={() => setSelectedComparisonId(r.id)}
+       >
+         <div className="flex items-start justify-between gap-2 mb-2">
+           <div>
+             <p className="text-sm font-semibold text-foreground">{r.id}</p>
+             <p className="text-xs text-muted-foreground">{r.tanggal} • {r.pelapor}</p>
+           </div>
+           <span className="text-lg font-bold text-primary">{semanticVal}%</span>
+         </div>
+ 
+         <div className="flex gap-1.5 mb-2">
+           <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
+             G:{geoVal}%
+           </Badge>
+           <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
+             L:{lexicalVal}%
+           </Badge>
+           <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
+             S:{semanticVal}%
+           </Badge>
+         </div>
+ 
+         <div className="flex items-start gap-2 mb-3">
+           <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+           <p className="text-xs text-muted-foreground line-clamp-2">{r.deskripsiTemuan}</p>
+         </div>
+ 
+         {annotation ? (
+           <div className="mb-2">{getAnnotationBadge(r.id)}</div>
+         ) : (
+           <div className="mb-3">
+             <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+               <div className="flex items-center gap-1">
+                 <Clock className="w-3 h-3" />
+                 <span>Auto-confirm dalam:</span>
+               </div>
+               <span className="font-mono">{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</span>
+             </div>
+             <Progress value={timerProgress} className="h-1.5" />
+           </div>
+         )}
+ 
+         {!annotation && (
+           <div className="flex gap-2">
+             <Button
+               size="sm"
+               variant="outline"
+               className="flex-1 bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20 text-xs"
+               onClick={(e) => { e.stopPropagation(); handleAnnotate(r.id, 'duplicate'); }}
+             >
+               <CheckCircle2 className="w-3 h-3 mr-1" />
+               Duplicate
+             </Button>
+             <Button
+               size="sm"
+               variant="outline"
+               className="flex-1 bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20 text-xs"
+               onClick={(e) => { e.stopPropagation(); handleAnnotate(r.id, 'not_duplicate'); }}
+             >
+               <XCircle className="w-3 h-3 mr-1" />
+               Bukan Duplicate
+             </Button>
+           </div>
+         )}
+       </div>
+     );
+   };
+ 
    return (
      <div className="fixed inset-0 z-50 flex justify-end">
-       {/* Backdrop */}
-       <div 
-         className="absolute inset-0 bg-background/60 backdrop-blur-sm" 
+       <div
+         className="absolute inset-0 bg-background/60 backdrop-blur-sm"
          onClick={onClose}
        />
-       
-       {/* Floating Panel */}
-       <div className="relative w-full max-w-5xl h-full bg-card shadow-2xl border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
-         {/* Header */}
+ 
+       <div className="relative w-full max-w-6xl h-full bg-card shadow-2xl border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
          <div className="p-4 border-b border-border bg-muted/30">
            <div className="flex items-center justify-between">
              <div className="flex items-center gap-3">
@@ -377,7 +516,7 @@
                <div>
                  <h3 className="font-bold text-foreground text-lg">Semantic Review</h3>
                  <p className="text-sm text-muted-foreground">
-                   Mode Perbandingan Makna
+                   Mode Perbandingan Makna • {duplicateReports.length} laporan mirip
                  </p>
                </div>
              </div>
@@ -385,66 +524,26 @@
                <X className="w-4 h-4" />
              </Button>
            </div>
- 
-           {/* Similarity Summary */}
-           <div className="mt-4 p-3 rounded-lg bg-card border border-border">
-             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Ringkasan Kemiripan Semantik</p>
-             <div className="flex items-center gap-2 mb-3">
-               <Brain className="w-4 h-4 text-purple-500" />
-               <span className="text-sm font-medium text-foreground">
-                 A: {semanticScore}% | B: {repSemanticScore}%
-               </span>
-             </div>
-             <div className="flex flex-wrap gap-2">
-               {bothHaveImages && (
-                 <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs">
-                   Keduanya Punya Gambar
-                 </Badge>
-               )}
-               {isSameSite && (
-                 <Badge variant="outline" className="bg-muted/50 text-foreground border-border text-xs">
-                   ⊕ Site Sama
-                 </Badge>
-               )}
-               {isSameLocation && (
-                 <Badge variant="outline" className="bg-muted/50 text-foreground border-border text-xs">
-                   ⊕ Lokasi Sama
-                 </Badge>
-               )}
-               <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
-                 Geo: 100%
-               </Badge>
-               <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
-                 Lexical: 100%
-               </Badge>
-               <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
-                 Semantic: {semanticScore}%
-               </Badge>
-             </div>
-           </div>
          </div>
  
-         {/* Content - Side by Side */}
          <div className="flex-1 flex overflow-hidden">
-           {/* Left Side - Selected Report */}
-           <ScrollArea className="w-1/2 border-r border-border">
+           <ScrollArea className="w-1/3 border-r border-border">
              <div className="p-4">
-               <ReportCard 
-                 r={report} 
-                 isRepresentative={representativeReport?.id === report.id}
-                 title="Laporan Utama"
-                 showAnalysis 
-                 scores={{ semantic: semanticScore }}
-                 distScores={distanceScores}
-               />
+               {representativeReport && (
+                 <ReportCard
+                   r={representativeReport}
+                   isRepresentative
+                   title="Laporan Utama"
+                   showAnalysis={false}
+                   distScores={generateDistanceScores()}
+                 />
+               )}
              </div>
            </ScrollArea>
  
-           {/* Right Side - Representative Report */}
-           <ScrollArea className="w-1/2 bg-muted/5">
+           <ScrollArea className="w-1/3 border-r border-border bg-muted/5">
              <div className="p-4">
-               {/* Back to list link */}
-               <button 
+               <button
                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
                  onClick={onClose}
                >
@@ -452,34 +551,57 @@
                  Kembali ke List
                </button>
  
-               {representativeReport && representativeReport.id !== report.id ? (
-                 <ReportCard 
-                   r={representativeReport} 
-                   isRepresentative 
+               {selectedComparison ? (
+                 <ReportCard
+                   r={selectedComparison}
                    title="Laporan Pembanding"
-                   showAnalysis 
-                   scores={{ semantic: repSemanticScore }}
-                   distScores={repDistanceScores}
+                   showAnalysis
+                   distScores={compDistanceScores}
                  />
-               ) : representativeReport && representativeReport.id === report.id ? (
-                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                   <Star className="w-12 h-12 text-warning mb-4" />
-                   <p className="text-foreground font-medium">Laporan ini adalah Representative</p>
-                   <p className="text-sm text-muted-foreground mt-1">
-                     Laporan pembanding tidak tersedia
-                   </p>
-                 </div>
                ) : (
                  <div className="flex flex-col items-center justify-center py-12 text-center">
                    <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                   <p className="text-muted-foreground">Tidak ada cluster terkait</p>
+                   <p className="text-muted-foreground">Pilih laporan dari daftar di kanan</p>
                  </div>
                )}
              </div>
            </ScrollArea>
+ 
+           <ScrollArea className="w-1/3">
+             <div className="p-4">
+               <div className="flex items-center justify-between mb-4">
+                 <h4 className="font-semibold text-foreground text-sm">
+                   Laporan Mirip (berdasarkan makna)
+                 </h4>
+               </div>
+ 
+               <Select value={sortBy} onValueChange={(v: 'semantic' | 'geo' | 'lexical') => setSortBy(v)}>
+                 <SelectTrigger className="w-full mb-4">
+                   <SelectValue placeholder="Urutkan" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="semantic">Semantic Tertinggi</SelectItem>
+                   <SelectItem value="geo">Geo Tertinggi</SelectItem>
+                   <SelectItem value="lexical">Lexical Tertinggi</SelectItem>
+                 </SelectContent>
+               </Select>
+ 
+               <div className="space-y-3">
+                 {sortedDuplicates.length > 0 ? (
+                   sortedDuplicates.map(r => (
+                     <SimilarReportItem key={r.id} r={r} />
+                   ))
+                 ) : (
+                   <div className="text-center py-8 text-muted-foreground">
+                     <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                     <p className="text-sm">Tidak ada laporan mirip</p>
+                   </div>
+                 )}
+               </div>
+             </div>
+           </ScrollArea>
          </div>
  
-         {/* Footer */}
          <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
            <div className="flex items-center gap-2 text-sm text-muted-foreground">
              <Users className="w-4 h-4" />
@@ -490,6 +612,33 @@
            </Button>
          </div>
        </div>
+ 
+       <Dialog open={showAnnotationDialog} onOpenChange={setShowAnnotationDialog}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Catatan Anotasi - Bukan Duplicate</DialogTitle>
+           </DialogHeader>
+           <div className="py-4">
+             <p className="text-sm text-muted-foreground mb-3">
+               Jelaskan mengapa laporan ini bukan duplicate. Laporan akan masuk ke antrian TBC/PSPP.GR untuk labeling.
+             </p>
+             <Textarea
+               placeholder="Tulis alasan mengapa ini bukan duplicate..."
+               value={annotationNotes}
+               onChange={(e) => setAnnotationNotes(e.target.value)}
+               rows={4}
+             />
+           </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setShowAnnotationDialog(false)}>
+               Batal
+             </Button>
+             <Button onClick={handleSubmitAnnotation} disabled={!annotationNotes.trim()}>
+               Simpan & Kirim ke Labeling
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
      </div>
    );
  };
