@@ -1,24 +1,90 @@
- import { useState, useCallback, useEffect } from "react";
- import { X, Star, User, MapPin, FileText, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, Users, Image as ImageIcon, ArrowLeft, Copy, Check, AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
- import { Button } from "@/components/ui/button";
- import { Badge } from "@/components/ui/badge";
- import { ScrollArea } from "@/components/ui/scroll-area";
- import { hazardReports, HazardReport, reportClusters } from "@/data/hazardReports";
- import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
- import { Separator } from "@/components/ui/separator";
- import { toast } from "sonner";
- import { Progress } from "@/components/ui/progress";
- import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
- import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
- import { Textarea } from "@/components/ui/textarea";
- 
- const AUTO_CONFIRM_DURATION = 60;
- 
- const generateDistanceScores = () => ({
-   imageDistance: Math.floor(Math.random() * 900000000) + 100000000,
-   descriptionDistance: Math.floor(Math.random() * 90000000) + 10000000,
-   locationDescDistance: Math.floor(Math.random() * 900000000) + 100000000,
- });
+import { useState, useCallback, useEffect } from "react";
+import { X, Star, User, MapPin, FileText, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, Users, Image as ImageIcon, Copy, Check, AlertTriangle, Clock, CheckCircle2, XCircle, RefreshCw, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { hazardReports, HazardReport, reportClusters } from "@/data/hazardReports";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+
+const AUTO_CONFIRM_DURATION = 60;
+
+// Similarity Breakdown scores
+const generateSimilarityBreakdown = () => ({
+  imageSimilarity: Math.floor(Math.random() * 500000000) + 100000000,
+  textSimilarity: Math.floor(Math.random() * 100000000) + 10000000,
+  textDescription: Math.floor(Math.random() * 100000000) + 10000000,
+  textLocation: Math.floor(Math.random() * 100000000) + 10000000,
+  totalSimilarity: Math.floor(Math.random() * 500000000) + 100000000,
+});
+
+// Duplicate Status Types
+type DuplicateStatus = 'potential_duplicate' | 'duplicate' | 'duplicate_by_system';
+
+// Helper to determine duplicate status
+const getDuplicateStatus = (report: HazardReport): DuplicateStatus => {
+  const overallScore = report.duplicateScores?.overall || 0;
+  if (overallScore >= 0.95) {
+    const isSystemDuplicate = Math.random() > 0.7;
+    if (isSystemDuplicate) return 'duplicate_by_system';
+  }
+  if (overallScore >= 0.85) return 'duplicate';
+  return 'potential_duplicate';
+};
+
+// Get status label and style
+const getDuplicateStatusInfo = (status: DuplicateStatus) => {
+  switch (status) {
+    case 'duplicate_by_system':
+      return { 
+        label: 'Duplicate by System', 
+        sublabel: 'Terupload 2 kali',
+        className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
+        icon: RefreshCw
+      };
+    case 'duplicate':
+      return { 
+        label: 'Duplicate', 
+        sublabel: null,
+        className: 'bg-destructive/10 text-destructive border-destructive/30',
+        icon: null
+      };
+    case 'potential_duplicate':
+    default:
+      return { 
+        label: 'Potential Duplicate', 
+        sublabel: null,
+        className: 'bg-warning/10 text-warning border-warning/30',
+        icon: null
+      };
+  }
+};
+
+// Get similarity explanation
+const getSimilarityExplanation = (scores: ReturnType<typeof generateSimilarityBreakdown>) => {
+  const explanations: string[] = [];
+  if (scores.imageSimilarity > 300000000) {
+    explanations.push("gambar sama");
+  } else if (scores.imageSimilarity > 150000000) {
+    explanations.push("gambar berpotensi sama");
+  }
+  if (scores.textDescription > 50000000) {
+    explanations.push("deskripsi sama");
+  } else if (scores.textDescription > 25000000) {
+    explanations.push("deskripsi berpotensi sama");
+  }
+  if (scores.textLocation > 50000000) {
+    explanations.push("keterangan lokasi sama");
+  } else if (scores.textLocation > 25000000) {
+    explanations.push("keterangan lokasi berpotensi sama");
+  }
+  return explanations.length > 0 ? explanations.join(", ") : "tidak ada kesamaan signifikan";
+};
  
  type AnnotationStatus = 'pending' | 'duplicate' | 'not_duplicate' | 'auto_confirmed';
  
@@ -53,153 +119,151 @@
    );
  };
  
- const AnalysisSection = ({ 
-   report, 
-   semanticScore,
-   distanceScores
- }: { 
-   report: HazardReport; 
-   semanticScore: number;
-   distanceScores: { imageDistance: number; descriptionDistance: number; locationDescDistance: number };
- }) => {
-   const [geoOpen, setGeoOpen] = useState(false);
-   const [lexicalOpen, setLexicalOpen] = useState(false);
- 
-   return (
-     <div className="space-y-3">
-       <div className="p-3 rounded-lg bg-card border border-border">
-         <div className="flex items-center gap-2 mb-3">
-           <Brain className="w-4 h-4 text-purple-500" />
-           <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
-           <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs ml-auto">
-             {semanticScore}%
-           </Badge>
-         </div>
-         
-         <div className="space-y-3">
-           <div>
-             <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-               <span>🧠</span> Interpretasi Makna
-             </p>
-             <p className="text-xs text-muted-foreground leading-relaxed">
-               Analisis makna menunjukkan kesamaan konteks pelanggaran dan kondisi hazard yang dilaporkan.
-             </p>
-           </div>
- 
-           <div>
-             <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-               <span>✨</span> Visual Terdeteksi
-             </p>
-             <div className="flex flex-wrap gap-1.5">
-               <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
-                 objek teridentifikasi
-               </Badge>
-               <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">
-                 kondisi terdeteksi
-               </Badge>
-             </div>
-           </div>
- 
-           <div className="pt-2 border-t border-border space-y-2">
-             <p className="text-xs text-muted-foreground mb-2">Distance Scores</p>
-             <div className="space-y-1.5">
-               <div className="flex items-center justify-between text-xs">
-                 <span className="text-muted-foreground">Distance Score Gambar (kemiripan gambar)</span>
-                 <span className="font-mono text-foreground">{distanceScores.imageDistance.toLocaleString()}</span>
-               </div>
-               <div className="flex items-center justify-between text-xs">
-                 <span className="text-muted-foreground">Distance Score Deskripsi (kemiripan deskripsi)</span>
-                 <span className="font-mono text-foreground">{distanceScores.descriptionDistance.toLocaleString()}</span>
-               </div>
-               <div className="flex items-center justify-between text-xs">
-                 <span className="text-muted-foreground">Distance Score Keterangan Lokasi</span>
-                 <span className="font-mono text-foreground">{distanceScores.locationDescDistance.toLocaleString()}</span>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
- 
-       <Collapsible open={geoOpen} onOpenChange={setGeoOpen}>
-         <div className="rounded-lg border border-border overflow-hidden">
-           <CollapsibleTrigger asChild>
-             <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
-               <div className="flex items-center gap-2">
-                 <Globe className="w-4 h-4 text-blue-500" />
-                 <span className="text-sm font-semibold text-foreground">Analisis Geo (Lokasi)</span>
-               </div>
-               <div className="flex items-center gap-2">
-                 <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
-                   100%
-                 </Badge>
-                 {geoOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-               </div>
-             </button>
-           </CollapsibleTrigger>
-           <CollapsibleContent>
-             <div className="p-3 bg-blue-500/5 border-t border-border space-y-3">
-               <div>
-                 <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                   <MapPin className="w-3 h-3" /> Kecocokan Lokasi
-                 </p>
-                 <div className="grid grid-cols-2 gap-2 text-xs">
-                   <div className="p-2 rounded bg-card border border-border">
-                     <p className="text-muted-foreground">Site</p>
-                     <p className="font-medium text-foreground">{report.site}</p>
-                   </div>
-                   <div className="p-2 rounded bg-card border border-border">
-                     <p className="text-muted-foreground">Area</p>
-                     <p className="font-medium text-foreground">{report.lokasiArea || report.lokasi}</p>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           </CollapsibleContent>
-         </div>
-       </Collapsible>
- 
-       <Collapsible open={lexicalOpen} onOpenChange={setLexicalOpen}>
-         <div className="rounded-lg border border-border overflow-hidden">
-           <CollapsibleTrigger asChild>
-             <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
-               <div className="flex items-center gap-2">
-                 <Type className="w-4 h-4 text-orange-500" />
-                 <span className="text-sm font-semibold text-foreground">Analisis Lexical (Kata)</span>
-               </div>
-               <div className="flex items-center gap-2">
-                 <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
-                   100%
-                 </Badge>
-                 {lexicalOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-               </div>
-             </button>
-           </CollapsibleTrigger>
-           <CollapsibleContent>
-             <div className="p-3 bg-orange-500/5 border-t border-border space-y-3">
-               <div>
-                 <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
-                   <span>🔤</span> Kata Kunci Terdeteksi
-                 </p>
-                 <div className="flex flex-wrap gap-1.5">
-                   {report.jenisHazard && (
-                     <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
-                       {report.jenisHazard}
-                     </Badge>
-                   )}
-                   {report.subJenisHazard && (
-                     <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
-                       {report.subJenisHazard}
-                     </Badge>
-                   )}
-                 </div>
-               </div>
-             </div>
-           </CollapsibleContent>
-         </div>
-       </Collapsible>
-     </div>
-   );
- };
+const AnalysisSection = ({ 
+  report, 
+  semanticScore,
+  similarityBreakdown
+}: { 
+  report: HazardReport; 
+  semanticScore: number;
+  similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown>;
+}) => {
+  const [geoOpen, setGeoOpen] = useState(false);
+  const [lexicalOpen, setLexicalOpen] = useState(false);
+  const similarityExplanation = getSimilarityExplanation(similarityBreakdown);
+
+  return (
+    <div className="space-y-3">
+      {/* Semantic Analysis - Similarity Breakdown */}
+      <div className="p-3 rounded-lg bg-card border border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain className="w-4 h-4 text-purple-500" />
+          <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs ml-auto">
+            {semanticScore}%
+          </Badge>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Similarity Breakdown */}
+          <div>
+            <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1">
+              <Zap className="w-3 h-3" /> Similarity Breakdown
+            </p>
+            <div className="space-y-1.5 bg-muted/30 p-2 rounded-md">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Image Similarity</span>
+                <span className="font-mono text-foreground">{similarityBreakdown.imageSimilarity.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Text Similarity</span>
+                <span className="font-mono text-foreground">{similarityBreakdown.textSimilarity.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pl-3 border-l-2 border-muted">
+                <span className="text-muted-foreground">Text – Description</span>
+                <span className="font-mono text-foreground">{similarityBreakdown.textDescription.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs pl-3 border-l-2 border-muted">
+                <span className="text-muted-foreground">Text – Location</span>
+                <span className="font-mono text-foreground">{similarityBreakdown.textLocation.toLocaleString()}</span>
+              </div>
+              <Separator className="my-1" />
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span className="text-foreground">Total Similarity</span>
+                <span className="font-mono text-primary">{similarityBreakdown.totalSimilarity.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Similarity Explanation */}
+          <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
+            <p className="text-xs text-muted-foreground mb-1">Keterangan:</p>
+            <p className="text-xs text-foreground capitalize">{similarityExplanation}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Geo Analysis - Expandable */}
+      <Collapsible open={geoOpen} onOpenChange={setGeoOpen}>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-blue-500" />
+                <span className="text-sm font-semibold text-foreground">Analisis Geo (Lokasi)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
+                  100%
+                </Badge>
+                {geoOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-3 bg-blue-500/5 border-t border-border space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Kecocokan Lokasi
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Site</p>
+                    <p className="font-medium text-foreground">{report.site}</p>
+                  </div>
+                  <div className="p-2 rounded bg-card border border-border">
+                    <p className="text-muted-foreground">Area</p>
+                    <p className="font-medium text-foreground">{report.lokasiArea || report.lokasi}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
+      {/* Lexical Analysis - 3 columns: Ketidaksesuaian, Sub Ketidaksesuaian, Quick Action */}
+      <Collapsible open={lexicalOpen} onOpenChange={setLexicalOpen}>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <CollapsibleTrigger asChild>
+            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-orange-500" />
+                <span className="text-sm font-semibold text-foreground">Analisis Lexical (Kata)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">
+                  100%
+                </Badge>
+                {lexicalOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-3 bg-orange-500/5 border-t border-border">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="p-2 rounded bg-card border border-border">
+                  <p className="text-muted-foreground mb-1">Ketidaksesuaian</p>
+                  <p className="font-medium text-foreground">{report.ketidaksesuaian || '-'}</p>
+                </div>
+                <div className="p-2 rounded bg-card border border-border">
+                  <p className="text-muted-foreground mb-1">Sub Ketidaksesuaian</p>
+                  <p className="font-medium text-foreground">{report.subKetidaksesuaian || '-'}</p>
+                </div>
+                <div className="p-2 rounded bg-card border border-border">
+                  <p className="text-muted-foreground mb-1">Quick Action</p>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                    Warning Letter
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    </div>
+  );
+};
  
  interface HazardDuplicateFloatingPanelProps {
    report: HazardReport;
@@ -265,7 +329,7 @@
      return bScore - aScore;
    });
  
-   const compDistanceScores = generateDistanceScores();
+   const compSimilarityBreakdown = generateSimilarityBreakdown();
  
    const handleAnnotate = (reportId: string, status: 'duplicate' | 'not_duplicate') => {
      if (status === 'not_duplicate') {
@@ -313,107 +377,124 @@
      }
    };
  
-   const ReportCard = ({
-     r,
-     isRepresentative = false,
-     showAnalysis = false,
-     title = "Laporan",
-     distScores
-   }: {
-     r: HazardReport;
-     isRepresentative?: boolean;
-     showAnalysis?: boolean;
-     title?: string;
-     distScores: { imageDistance: number; descriptionDistance: number; locationDescDistance: number };
-   }) => {
-     const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
- 
-     return (
-       <div className="space-y-4">
-         {isRepresentative && (
-           <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
-             <Star className="w-3 h-3 fill-current" />
-             Representative
-           </Badge>
-         )}
- 
-         <div className="flex items-center justify-between gap-2">
-           <div className="flex items-center gap-2">
-             <FileText className="w-4 h-4 text-muted-foreground" />
-             <span className="font-semibold text-foreground">{title}</span>
-           </div>
-           <CopyIdButton id={r.id} />
-         </div>
- 
-         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-           <div className="flex items-center gap-1">
-             <Calendar className="w-4 h-4" />
-             <span>{r.tanggal}</span>
-           </div>
-           <div className="flex items-center gap-1">
-             <User className="w-4 h-4" />
-             <span>{r.pelapor}</span>
-           </div>
-         </div>
- 
-         <div className="grid grid-cols-2 gap-3">
-           <div>
-             <p className="text-xs text-muted-foreground mb-1">Site</p>
-             <div className="flex items-center gap-1.5">
-               <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-               <span className="text-sm font-medium text-foreground">{r.site}</span>
-             </div>
-           </div>
-           <div>
-             <p className="text-xs text-muted-foreground mb-1">Lokasi</p>
-             <div className="flex items-center gap-1.5">
-               <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-               <span className="text-sm font-medium text-foreground">{r.lokasiArea}</span>
-             </div>
-           </div>
-         </div>
- 
-         <div>
-           <p className="text-xs text-muted-foreground mb-1">Asal Cluster</p>
-           {r.cluster ? (
-             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
-               ⊕ {r.cluster}
-             </Badge>
-           ) : (
-             <span className="text-sm text-muted-foreground">-</span>
-           )}
-         </div>
- 
-         <div className="p-3 rounded-lg bg-muted/30 border border-border">
-           <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-             <FileText className="w-4 h-4" />
-             <span className="text-sm font-medium">Deskripsi Temuan</span>
-           </div>
-           <p className="text-sm text-foreground leading-relaxed">
-             {r.deskripsiTemuan}
-           </p>
-         </div>
- 
-         <div className="p-3 rounded-lg bg-muted/30 border border-border">
-           <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-             <ImageIcon className="w-4 h-4" />
-             <span className="text-sm font-medium">Gambar Temuan (1)</span>
-           </div>
-           <div className="aspect-video rounded-lg bg-muted/50 flex items-center justify-center">
-             <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
-           </div>
-         </div>
- 
-         {showAnalysis && (
-           <AnalysisSection 
-             report={r} 
-             semanticScore={semanticVal} 
-             distanceScores={distScores}
-           />
-         )}
-       </div>
-     );
-   };
+  const ReportCard = ({
+    r,
+    isRepresentative = false,
+    showAnalysis = false,
+    title = "Laporan",
+    similarityBreakdown
+  }: {
+    r: HazardReport;
+    isRepresentative?: boolean;
+    showAnalysis?: boolean;
+    title?: string;
+    similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown>;
+  }) => {
+    const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
+    const status = getDuplicateStatus(r);
+    const statusInfo = getDuplicateStatusInfo(status);
+
+    return (
+      <div className="space-y-4">
+        {/* Status Badge */}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`${statusInfo.className} gap-1`}>
+            {statusInfo.icon && <statusInfo.icon className="w-3 h-3" />}
+            {statusInfo.label}
+          </Badge>
+          {statusInfo.sublabel && (
+            <span className="text-xs text-muted-foreground">({statusInfo.sublabel})</span>
+          )}
+        </div>
+
+        {isRepresentative && (
+          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
+            <Star className="w-3 h-3 fill-current" />
+            Representative
+          </Badge>
+        )}
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            <span className="font-semibold text-foreground">{title}</span>
+          </div>
+          <CopyIdButton id={r.id} />
+        </div>
+
+        {/* Timestamp display */}
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-4 h-4" />
+            <span>{r.timestamp || r.tanggal}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <User className="w-4 h-4" />
+            <span>{r.pelapor}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Site</p>
+            <div className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{r.site}</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Lokasi</p>
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{r.lokasiArea}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Cluster Semantic</p>
+          {r.cluster ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+                ⊕ {r.cluster}
+              </Badge>
+              <CopyIdButton id={r.cluster} />
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">-</span>
+          )}
+        </div>
+
+        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+            <FileText className="w-4 h-4" />
+            <span className="text-sm font-medium">Deskripsi Temuan</span>
+          </div>
+          <p className="text-sm text-foreground leading-relaxed">
+            {r.deskripsiTemuan}
+          </p>
+        </div>
+
+        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground">
+            <ImageIcon className="w-4 h-4" />
+            <span className="text-sm font-medium">Gambar Temuan (1)</span>
+          </div>
+          <div className="aspect-video rounded-lg bg-muted/50 flex items-center justify-center">
+            <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+          </div>
+        </div>
+
+        {showAnalysis && (
+          <AnalysisSection 
+            report={r} 
+            semanticScore={semanticVal} 
+            similarityBreakdown={similarityBreakdown}
+          />
+        )}
+      </div>
+    );
+  };
  
    const SimilarReportItem = ({ r }: { r: HazardReport }) => {
      const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
@@ -528,42 +609,34 @@
  
          <div className="flex-1 flex overflow-hidden">
            <ScrollArea className="w-1/3 border-r border-border">
-             <div className="p-4">
-               {representativeReport && (
-                 <ReportCard
-                   r={representativeReport}
-                   isRepresentative
-                   title="Laporan Utama"
-                   showAnalysis={false}
-                   distScores={generateDistanceScores()}
-                 />
-               )}
-             </div>
-           </ScrollArea>
- 
-           <ScrollArea className="w-1/3 border-r border-border bg-muted/5">
-             <div className="p-4">
-               <button
-                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-                 onClick={onClose}
-               >
-                 <ArrowLeft className="w-4 h-4" />
-                 Kembali ke List
-               </button>
- 
-               {selectedComparison ? (
-                 <ReportCard
-                   r={selectedComparison}
-                   title="Laporan Pembanding"
-                   showAnalysis
-                   distScores={compDistanceScores}
-                 />
-               ) : (
-                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                   <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                   <p className="text-muted-foreground">Pilih laporan dari daftar di kanan</p>
-                 </div>
-               )}
+            <div className="p-4">
+              {representativeReport && (
+                <ReportCard
+                  r={representativeReport}
+                  isRepresentative
+                  title="Laporan Utama"
+                  showAnalysis={false}
+                  similarityBreakdown={generateSimilarityBreakdown()}
+                />
+              )}
+            </div>
+          </ScrollArea>
+
+          <ScrollArea className="w-1/3 border-r border-border bg-muted/5">
+            <div className="p-4">
+              {selectedComparison ? (
+                <ReportCard
+                  r={selectedComparison}
+                  title="Laporan Pembanding"
+                  showAnalysis
+                  similarityBreakdown={compSimilarityBreakdown}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                  <p className="text-muted-foreground">Pilih laporan dari daftar di kanan</p>
+                </div>
+              )}
              </div>
            </ScrollArea>
  
