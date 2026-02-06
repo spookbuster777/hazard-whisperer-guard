@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, Star, Clock, User, Calendar, Building2, Brain, ChevronUp, Globe, Type, Users, Image, ExternalLink, SlidersHorizontal } from "lucide-react";
+import { Search, MapPin, FileText, Layers, ChevronDown, Eye, AlertTriangle, Zap, Navigation, Star, Clock, User, Calendar, Building2, Brain, ChevronUp, Globe, Type, Users, Image, ExternalLink, SlidersHorizontal, RefreshCw } from "lucide-react";
 import HazardDuplicateFloatingPanel from "./HazardDuplicateFloatingPanel";
 import { ClusterInfo, HazardReport, hazardReports, reportClusters } from "@/data/hazardReports";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,66 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import HierarchicalFilterSystem, { 
   HierarchicalFilterState, 
   initialFilterState 
 } from "./HierarchicalFilterSystem";
+
+// Duplicate Status Types
+type DuplicateStatus = 'all' | 'potential_duplicate' | 'duplicate' | 'duplicate_by_system';
+
+// Helper to determine duplicate status
+const getDuplicateStatus = (report: HazardReport): DuplicateStatus => {
+  const overallScore = report.duplicateScores?.overall || 0;
+  const timestamp = report.timestamp ? new Date(report.timestamp).getTime() : 0;
+  
+  // Check for "Duplicate by System" - similarity ≥95% AND timestamp very close (≤3 seconds)
+  if (overallScore >= 0.95) {
+    // In production, this would check actual timestamp difference with other reports
+    // For demo, we'll flag reports with very high similarity as system duplicates
+    const isSystemDuplicate = Math.random() > 0.7; // Demo: random selection for high similarity
+    if (isSystemDuplicate) return 'duplicate_by_system';
+  }
+  
+  if (overallScore >= 0.85) return 'duplicate';
+  if (overallScore >= 0.70) return 'potential_duplicate';
+  return 'potential_duplicate'; // Default for clustered reports
+};
+
+// Get status label and style
+const getDuplicateStatusInfo = (status: DuplicateStatus) => {
+  switch (status) {
+    case 'duplicate_by_system':
+      return { 
+        label: 'Duplicate by System', 
+        sublabel: 'Terupload 2 kali',
+        className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
+        icon: RefreshCw
+      };
+    case 'duplicate':
+      return { 
+        label: 'Duplicate', 
+        sublabel: null,
+        className: 'bg-destructive/10 text-destructive border-destructive/30',
+        icon: null
+      };
+    case 'potential_duplicate':
+      return { 
+        label: 'Potential Duplicate', 
+        sublabel: null,
+        className: 'bg-warning/10 text-warning border-warning/30',
+        icon: null
+      };
+    default:
+      return { 
+        label: '-', 
+        sublabel: null,
+        className: 'bg-muted text-muted-foreground border-border',
+        icon: null
+      };
+  }
+};
 
 interface HazardDuplicateListProps {
   onNavigateToCluster?: (clusterId: string) => void;
@@ -176,7 +232,7 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterState, setFilterState] = useState<HierarchicalFilterState>(initialFilterState);
   const [similarityRange, setSimilarityRange] = useState<[number, number]>([0, 100]);
-
+  const [duplicateStatusFilter, setDuplicateStatusFilter] = useState<DuplicateStatus>('all');
   // Filter reports
   const filteredReports = useMemo(() => {
     return duplicateReports.filter(report => {
@@ -190,6 +246,12 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
           report.lokasiArea?.toLowerCase().includes(searchLower) ||
           report.cluster?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
+      }
+
+      // Duplicate status filter
+      if (duplicateStatusFilter !== 'all') {
+        const status = getDuplicateStatus(report);
+        if (status !== duplicateStatusFilter) return false;
       }
 
       // Site filter
@@ -236,7 +298,7 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
 
       return true;
     });
-  }, [searchTerm, filterState, similarityRange]);
+  }, [searchTerm, filterState, similarityRange, duplicateStatusFilter]);
 
   const handleViewDetail = (report: HazardReport) => {
     setSelectedReport(report);
@@ -406,15 +468,33 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
           {/* Left Column - Report Table */}
           <div className="flex-1">
             {filteredReports.length > 0 ? (
-              <div className="rounded-lg border bg-card">
+              <>
+                {/* Status Filter Dropdown */}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-sm text-muted-foreground">Status:</span>
+                  <Select value={duplicateStatusFilter} onValueChange={(v: DuplicateStatus) => setDuplicateStatusFilter(v)}>
+                    <SelectTrigger className="w-[200px] h-8">
+                      <SelectValue placeholder="Filter Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="potential_duplicate">Potential Duplicate</SelectItem>
+                      <SelectItem value="duplicate">Duplicate</SelectItem>
+                      <SelectItem value="duplicate_by_system">Duplicate by System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-lg border bg-card">
                 <Table className="[&_tr]:border-b-0">
                   <TableHeader>
                     <TableRow className="border-b">
                       <TableHead className="w-[100px] py-2">ID</TableHead>
-                      <TableHead className="w-[90px] py-2">Tanggal</TableHead>
+                      <TableHead className="w-[90px] py-2">Timestamp</TableHead>
                       <TableHead className="w-[100px] py-2">Site</TableHead>
                       <TableHead className="w-[120px] py-2">Lokasi</TableHead>
                       <TableHead className="py-2">Deskripsi</TableHead>
+                      <TableHead className="w-[150px] py-2">Status</TableHead>
                       <TableHead className="w-[140px] py-2">Cluster</TableHead>
                       <TableHead className="w-[80px] text-center py-2">Similarity</TableHead>
                       <TableHead className="w-[60px] py-2">Aksi</TableHead>
@@ -454,11 +534,39 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                               </Tooltip>
                             </TooltipProvider>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground py-1.5">{report.tanggal}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground py-1.5">
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>{report.tanggal}</span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="bg-popover border">
+                                  <p className="text-xs">{report.timestamp || report.tanggal}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
                           <TableCell className="text-xs py-1.5">{report.site}</TableCell>
                           <TableCell className="text-xs py-1.5">{report.lokasiArea || report.lokasi}</TableCell>
                           <TableCell className="text-sm max-w-[200px] truncate py-1.5">
                             {report.deskripsiTemuan}
+                          </TableCell>
+                          <TableCell className="py-1.5">
+                            {(() => {
+                              const status = getDuplicateStatus(report);
+                              const statusInfo = getDuplicateStatusInfo(status);
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge variant="outline" className={`text-[10px] ${statusInfo.className}`}>
+                                    {statusInfo.icon && <statusInfo.icon className="w-3 h-3 mr-1" />}
+                                    {statusInfo.label}
+                                  </Badge>
+                                  {statusInfo.sublabel && (
+                                    <span className="text-[10px] text-muted-foreground">{statusInfo.sublabel}</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="py-1.5">
                             <div className="flex flex-wrap gap-0.5">
@@ -506,6 +614,7 @@ const HazardDuplicateList = ({ onNavigateToCluster }: HazardDuplicateListProps) 
                   </TableBody>
                 </Table>
               </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border bg-card">
                 <div className="text-muted-foreground mb-2">
