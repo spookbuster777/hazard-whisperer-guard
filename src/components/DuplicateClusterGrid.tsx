@@ -116,10 +116,6 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
     onViewReport?.(report);
   };
 
-  const handleNavigateCluster = (cluster: ClusterInfo) => {
-    setViewingCluster(cluster);
-  };
-
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
@@ -226,10 +222,8 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
       {viewingCluster && (
         <DuplicateClusterDetailPanel
           cluster={viewingCluster}
-          allClusters={filteredClusters}
           onClose={handleClosePanel}
           onViewReport={handleViewReport}
-          onNavigateCluster={handleNavigateCluster}
         />
       )}
     </>
