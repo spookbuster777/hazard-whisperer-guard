@@ -86,8 +86,6 @@ const CopyIdButton = ({ id }: { id: string }) => {
 
 // Analysis Section matching HazardDuplicateFloatingPanel
 const AnalysisSection = ({ report, semanticScore, similarityBreakdown }: { report: HazardReport; semanticScore: number; similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown> }) => {
-  const [geoOpen, setGeoOpen] = useState(false);
-  const [lexicalOpen, setLexicalOpen] = useState(false);
   const similarityExplanation = getSimilarityExplanation(similarityBreakdown);
 
   return (
@@ -133,73 +131,6 @@ const AnalysisSection = ({ report, semanticScore, similarityBreakdown }: { repor
         </div>
       </div>
 
-      {/* Geo Analysis */}
-      <Collapsible open={geoOpen} onOpenChange={setGeoOpen}>
-        <div className="rounded-lg border border-border overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-semibold text-foreground">Analisis Geo (Lokasi)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">100%</Badge>
-                {geoOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </div>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="p-3 bg-blue-500/5 border-t border-border">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2 rounded bg-card border border-border">
-                  <p className="text-muted-foreground">Site</p>
-                  <p className="font-medium text-foreground">{report.site}</p>
-                </div>
-                <div className="p-2 rounded bg-card border border-border">
-                  <p className="text-muted-foreground">Area</p>
-                  <p className="font-medium text-foreground">{report.lokasiArea || report.lokasi}</p>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </div>
-      </Collapsible>
-
-      {/* Lexical Analysis - 3 columns */}
-      <Collapsible open={lexicalOpen} onOpenChange={setLexicalOpen}>
-        <div className="rounded-lg border border-border overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <button className="w-full p-3 flex items-center justify-between bg-card hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-2">
-                <Type className="w-4 h-4 text-orange-500" />
-                <span className="text-sm font-semibold text-foreground">Analisis Lexical (Kata)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">100%</Badge>
-                {lexicalOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </div>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="p-3 bg-orange-500/5 border-t border-border">
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="p-2 rounded bg-card border border-border">
-                  <p className="text-muted-foreground mb-1">Ketidaksesuaian</p>
-                  <p className="font-medium text-foreground">{report.ketidaksesuaian || '-'}</p>
-                </div>
-                <div className="p-2 rounded bg-card border border-border">
-                  <p className="text-muted-foreground mb-1">Sub Ketidaksesuaian</p>
-                  <p className="font-medium text-foreground">{report.subKetidaksesuaian || '-'}</p>
-                </div>
-                <div className="p-2 rounded bg-card border border-border">
-                  <p className="text-muted-foreground mb-1">Quick Action</p>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">Warning Letter</Badge>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </div>
-      </Collapsible>
     </div>
   );
 };
@@ -216,13 +147,15 @@ const ReportCard = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className={`${statusInfo.className} gap-1`}>
-          {statusInfo.icon && <statusInfo.icon className="w-3 h-3" />}
-          {statusInfo.label}
-        </Badge>
-        {statusInfo.sublabel && <span className="text-xs text-muted-foreground">({statusInfo.sublabel})</span>}
-      </div>
+      {!isRepresentative && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`${statusInfo.className} gap-1`}>
+            {statusInfo.icon && <statusInfo.icon className="w-3 h-3" />}
+            {statusInfo.label}
+          </Badge>
+          {statusInfo.sublabel && <span className="text-xs text-muted-foreground">({statusInfo.sublabel})</span>}
+        </div>
+      )}
 
       {isRepresentative && (
         <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 gap-1">
@@ -267,18 +200,6 @@ const ReportCard = ({
         </div>
       </div>
 
-      <div>
-        <p className="text-xs text-muted-foreground mb-1">Cluster Semantic</p>
-        {r.cluster ? (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">⊕ {r.cluster}</Badge>
-            <CopyIdButton id={r.cluster} />
-          </div>
-        ) : (
-          <span className="text-sm text-muted-foreground">-</span>
-        )}
-      </div>
-
       <div className="p-3 rounded-lg bg-muted/30 border border-border">
         <div className="flex items-center gap-2 mb-2 text-muted-foreground">
           <FileText className="w-4 h-4" />
@@ -320,7 +241,7 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
   );
   const selectedComparison = duplicateReports.find(r => r.id === selectedComparisonId) || null;
 
-  const [sortBy, setSortBy] = useState<'semantic' | 'geo' | 'lexical'>('semantic');
+  const [sortBy, setSortBy] = useState<'image' | 'text'>('image');
   const [annotations, setAnnotations] = useState<Record<string, AnnotationData>>({});
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [showAnnotationDialog, setShowAnnotationDialog] = useState(false);
@@ -361,9 +282,15 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
   }, [annotations]);
 
   const sortedDuplicates = [...duplicateReports].sort((a, b) => {
-    const aScore = a.duplicateScores?.[sortBy] || 0;
-    const bScore = b.duplicateScores?.[sortBy] || 0;
-    return bScore - aScore;
+    if (sortBy === 'image') {
+      const aScore = a.duplicateScores?.semantic || 0;
+      const bScore = b.duplicateScores?.semantic || 0;
+      return bScore - aScore;
+    } else {
+      const aScore = a.duplicateScores?.semantic || 0;
+      const bScore = b.duplicateScores?.semantic || 0;
+      return bScore - aScore;
+    }
   });
 
   const handleAnnotate = useCallback((reportId: string, type: 'duplicate' | 'not_duplicate') => {
@@ -424,16 +351,25 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
           <span className="text-lg font-bold text-primary">{semanticVal}%</span>
         </div>
 
-        <div className="flex gap-1.5 mb-2">
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">G:100%</Badge>
-          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-xs">L:100%</Badge>
-          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs">S:{semanticVal}%</Badge>
+        {(() => {
+          const dupStatus = getDuplicateStatus(r);
+          const dupInfo = getDuplicateStatusInfo(dupStatus);
+          return (
+            <div className="flex items-center gap-1.5 mb-2">
+              <Badge variant="outline" className={`${dupInfo.className} text-xs gap-1`}>
+                {dupInfo.icon && <dupInfo.icon className="w-3 h-3" />}
+                {dupInfo.label}
+              </Badge>
+              {dupInfo.sublabel && <span className="text-xs text-muted-foreground">({dupInfo.sublabel})</span>}
+            </div>
+          );
+        })()}
+
+        <div className="aspect-[16/10] rounded-md bg-muted/50 flex items-center justify-center mb-2">
+          <ImageIcon className="w-10 h-10 text-muted-foreground/30" />
         </div>
 
-        <div className="flex items-start gap-2 mb-3">
-          <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-xs text-muted-foreground line-clamp-2">{r.deskripsiTemuan}</p>
-        </div>
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{r.deskripsiTemuan}</p>
 
         {annotation ? (
           <div className="mb-2">{getAnnotationBadge(r.id)}</div>
@@ -516,14 +452,13 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
             <div className="p-4">
               <h4 className="font-semibold text-foreground text-sm mb-4">Laporan Mirip (berdasarkan makna)</h4>
 
-              <Select value={sortBy} onValueChange={(v: 'semantic' | 'geo' | 'lexical') => setSortBy(v)}>
+              <Select value={sortBy} onValueChange={(v: 'image' | 'text') => setSortBy(v)}>
                 <SelectTrigger className="w-full mb-4">
                   <SelectValue placeholder="Urutkan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="semantic">Semantic Tertinggi</SelectItem>
-                  <SelectItem value="geo">Geo Tertinggi</SelectItem>
-                  <SelectItem value="lexical">Lexical Tertinggi</SelectItem>
+                  <SelectItem value="image">Image Similarity</SelectItem>
+                  <SelectItem value="text">Text Similarity</SelectItem>
                 </SelectContent>
               </Select>
 
