@@ -700,6 +700,8 @@ const DuplicateClusterList = ({ clusters, onViewReport }: DuplicateClusterListPr
           cluster={viewingCluster}
           onClose={handleClosePanel}
           onViewReport={handleViewReport}
+          allClusters={filteredClusters}
+          onNavigateCluster={(c) => setViewingCluster(c)}
         />
       )}
     </>

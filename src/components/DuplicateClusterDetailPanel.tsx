@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Star, Clock, User, MapPin, FileText, Image, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, CheckCircle2, XCircle, Timer, AlertTriangle, Send, Loader2, Copy, Check, Zap, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { X, Star, Clock, User, MapPin, FileText, Image, Brain, Calendar, ChevronDown, ChevronUp, Globe, Type, CheckCircle2, XCircle, Timer, AlertTriangle, Send, Loader2, Copy, Check, Zap, RefreshCw, Image as ImageIcon, ChevronLeft, ChevronRight, ArrowUpDown, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ClusterInfo, hazardReports, HazardReport } from "@/data/hazardReports";
+import { ClusterInfo, hazardReports, HazardReport, reportClusters } from "@/data/hazardReports";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type AnnotationStatus = "pending" | "duplicate" | "not_duplicate" | "auto_confirmed";
 
@@ -24,7 +24,6 @@ interface AnnotationData {
 
 const AUTO_CONFIRM_DURATION = 60;
 
-// Duplicate Status
 type DuplicateStatus = 'potential_duplicate' | 'duplicate' | 'duplicate_by_system';
 
 const getDuplicateStatus = (report: HazardReport): DuplicateStatus => {
@@ -53,7 +52,6 @@ const generateSimilarityBreakdown = () => ({
   imageSimilarity: Math.floor(Math.random() * 500000000) + 100000000,
   textSimilarity: Math.floor(Math.random() * 100000000) + 10000000,
   textDescription: Math.floor(Math.random() * 100000000) + 10000000,
-  textLocation: Math.floor(Math.random() * 100000000) + 10000000,
   totalSimilarity: Math.floor(Math.random() * 500000000) + 100000000,
 });
 
@@ -63,8 +61,6 @@ const getSimilarityExplanation = (scores: ReturnType<typeof generateSimilarityBr
   else if (scores.imageSimilarity > 150000000) explanations.push("gambar berpotensi sama");
   if (scores.textDescription > 50000000) explanations.push("deskripsi sama");
   else if (scores.textDescription > 25000000) explanations.push("deskripsi berpotensi sama");
-  if (scores.textLocation > 50000000) explanations.push("keterangan lokasi sama");
-  else if (scores.textLocation > 25000000) explanations.push("keterangan lokasi berpotensi sama");
   return explanations.length > 0 ? explanations.join(", ") : "tidak ada kesamaan signifikan";
 };
 
@@ -84,69 +80,54 @@ const CopyIdButton = ({ id }: { id: string }) => {
   );
 };
 
-// Analysis Section matching HazardDuplicateFloatingPanel
-const AnalysisSection = ({ report, semanticScore, similarityBreakdown }: { report: HazardReport; semanticScore: number; similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown> }) => {
+// Similarity Breakdown in middle column
+const AnalysisSection = ({ similarityBreakdown }: { similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown> }) => {
   const similarityExplanation = getSimilarityExplanation(similarityBreakdown);
-
   return (
-    <div className="space-y-3">
-      {/* Semantic Analysis - Similarity Breakdown */}
-      <div className="p-3 rounded-lg bg-card border border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <Brain className="w-4 h-4 text-purple-500" />
-          <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
-          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30 text-xs ml-auto">{semanticScore}%</Badge>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1"><Zap className="w-3 h-3" /> Similarity Breakdown</p>
-            <div className="space-y-1.5 bg-muted/30 p-2 rounded-md">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Image Similarity</span>
-                <span className="font-mono text-foreground">{similarityBreakdown.imageSimilarity.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Text Similarity</span>
-                <span className="font-mono text-foreground">{similarityBreakdown.textSimilarity.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs pl-3 border-l-2 border-muted">
-                <span className="text-muted-foreground">Text – Description</span>
-                <span className="font-mono text-foreground">{similarityBreakdown.textDescription.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs pl-3 border-l-2 border-muted">
-                <span className="text-muted-foreground">Text – Location</span>
-                <span className="font-mono text-foreground">{similarityBreakdown.textLocation.toLocaleString()}</span>
-              </div>
-              <Separator className="my-1" />
-              <div className="flex items-center justify-between text-xs font-medium">
-                <span className="text-foreground">Total Similarity</span>
-                <span className="font-mono text-primary">{similarityBreakdown.totalSimilarity.toLocaleString()}</span>
-              </div>
+    <div className="p-3 rounded-lg bg-card border border-border">
+      <div className="flex items-center gap-2 mb-3">
+        <Brain className="w-4 h-4 text-purple-500" />
+        <span className="text-sm font-semibold text-foreground">Analisis Semantik</span>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1"><Zap className="w-3 h-3" /> Similarity Breakdown</p>
+          <div className="space-y-1.5 bg-muted/30 p-2 rounded-md">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Image Similarity</span>
+              <span className="font-mono text-foreground">{similarityBreakdown.imageSimilarity.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Text Similarity (Description)</span>
+              <span className="font-mono text-foreground">{similarityBreakdown.textDescription.toLocaleString()}</span>
+            </div>
+            <Separator className="my-1" />
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-foreground">Total Similarity</span>
+              <span className="font-mono text-primary">{similarityBreakdown.totalSimilarity.toLocaleString()}</span>
             </div>
           </div>
-          <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
-            <p className="text-xs text-muted-foreground mb-1">Keterangan:</p>
-            <p className="text-xs text-foreground capitalize">{similarityExplanation}</p>
-          </div>
+        </div>
+        <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
+          <p className="text-xs text-muted-foreground mb-1">Keterangan:</p>
+          <p className="text-xs text-foreground capitalize">{similarityExplanation}</p>
         </div>
       </div>
-
     </div>
   );
 };
 
-// Report Card component
+// Report Card for left/middle columns
 const ReportCard = ({
   r, isRepresentative = false, showAnalysis = false, title = "Laporan", similarityBreakdown
 }: {
   r: HazardReport; isRepresentative?: boolean; showAnalysis?: boolean; title?: string; similarityBreakdown: ReturnType<typeof generateSimilarityBreakdown>;
 }) => {
-  const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
   const status = getDuplicateStatus(r);
   const statusInfo = getDuplicateStatusInfo(status);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {!isRepresentative && (
         <div className="flex items-center gap-2">
           <Badge variant="outline" className={`${statusInfo.className} gap-1`}>
@@ -167,59 +148,83 @@ const ReportCard = ({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-muted-foreground" />
-          <span className="font-semibold text-foreground">{title}</span>
+          <span className="font-semibold text-foreground text-sm">{title}</span>
         </div>
         <CopyIdButton id={r.id} />
       </div>
 
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-3.5 h-3.5" />
           <span>{r.timestamp || r.tanggal}</span>
         </div>
         <div className="flex items-center gap-1">
-          <User className="w-4 h-4" />
+          <User className="w-3.5 h-3.5" />
           <span>{r.pelapor}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Site</p>
-          <div className="flex items-center gap-1.5">
-            <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{r.site}</span>
+          <p className="text-xs text-muted-foreground mb-0.5">Site</p>
+          <div className="flex items-center gap-1">
+            <Globe className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-foreground">{r.site}</span>
           </div>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Lokasi</p>
-          <div className="flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{r.lokasiArea || r.lokasi}</span>
+          <p className="text-xs text-muted-foreground mb-0.5">Lokasi</p>
+          <div className="flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-foreground">{r.lokasiArea || r.lokasi}</span>
           </div>
         </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5">Detail Lokasi</p>
+          <span className="text-xs font-medium text-foreground">{r.detailLokasi || '-'}</span>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5">Keterangan Lokasi</p>
+          <span className="text-xs font-medium text-foreground">{r.lokasi || '-'}</span>
+        </div>
       </div>
 
-      <div className="p-3 rounded-lg bg-muted/30 border border-border">
-        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-          <FileText className="w-4 h-4" />
-          <span className="text-sm font-medium">Deskripsi Temuan</span>
+      <div className="p-2 rounded-lg bg-muted/30 border border-border">
+        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+          <FileText className="w-3.5 h-3.5" />
+          <span className="text-xs font-medium">Deskripsi Temuan</span>
         </div>
-        <p className="text-sm text-foreground leading-relaxed">{r.deskripsiTemuan}</p>
+        <p className="text-xs text-foreground leading-relaxed">{r.deskripsiTemuan}</p>
       </div>
 
-      <div className="p-3 rounded-lg bg-muted/30 border border-border">
-        <div className="flex items-center gap-2 mb-2 text-muted-foreground">
-          <ImageIcon className="w-4 h-4" />
-          <span className="text-sm font-medium">Gambar Temuan (1)</span>
+      <div className="p-2 rounded-lg bg-muted/30 border border-border">
+        <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span className="text-xs font-medium">Gambar Temuan</span>
         </div>
-        <div className="aspect-video rounded-lg bg-muted/50 flex items-center justify-center">
-          <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+        <div className="aspect-video rounded-md bg-muted/50 flex items-center justify-center">
+          <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
+        </div>
+      </div>
+
+      {/* Ketidaksesuaian, Sub, Quick Action below image */}
+      <div className="p-2 rounded-lg bg-muted/30 border border-border space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Ketidaksesuaian</span>
+          <span className="font-medium text-foreground text-right max-w-[60%] truncate">{r.ketidaksesuaian || '-'}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Sub Ketidaksesuaian</span>
+          <span className="font-medium text-foreground text-right max-w-[60%] truncate">{r.subKetidaksesuaian || '-'}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Quick Action</span>
+          <Badge variant="outline" className="text-xs">{r.quickAction || '-'}</Badge>
         </div>
       </div>
 
       {showAnalysis && (
-        <AnalysisSection report={r} semanticScore={semanticVal} similarityBreakdown={similarityBreakdown} />
+        <AnalysisSection similarityBreakdown={similarityBreakdown} />
       )}
     </div>
   );
@@ -229,19 +234,32 @@ interface DuplicateClusterDetailPanelProps {
   cluster: ClusterInfo;
   onClose: () => void;
   onViewReport?: (report: HazardReport) => void;
+  allClusters?: ClusterInfo[];
+  onNavigateCluster?: (cluster: ClusterInfo) => void;
 }
 
-const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: DuplicateClusterDetailPanelProps) => {
+const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport, allClusters, onNavigateCluster }: DuplicateClusterDetailPanelProps) => {
+  const clusters = allClusters || reportClusters;
+  const currentClusterIndex = clusters.findIndex(c => c.id === cluster.id);
+
   const clusterReports = hazardReports.filter(r => r.cluster === cluster.id);
   const representativeReport = clusterReports[0];
   const duplicateReports = clusterReports.slice(1);
+
+  // Compute status counts
+  const statusCounts = duplicateReports.reduce((acc, r) => {
+    const s = getDuplicateStatus(r);
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {} as Record<DuplicateStatus, number>);
 
   const [selectedComparisonId, setSelectedComparisonId] = useState<string | null>(
     duplicateReports.length > 0 ? duplicateReports[0].id : null
   );
   const selectedComparison = duplicateReports.find(r => r.id === selectedComparisonId) || null;
 
-  const [sortBy, setSortBy] = useState<'image' | 'text'>('image');
+  const [sortBy, setSortBy] = useState<'similarity'>('similarity');
+  const [filterStatus, setFilterStatus] = useState<'all' | DuplicateStatus>('all');
   const [annotations, setAnnotations] = useState<Record<string, AnnotationData>>({});
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [showAnnotationDialog, setShowAnnotationDialog] = useState(false);
@@ -250,6 +268,12 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const compSimilarityBreakdown = generateSimilarityBreakdown();
+
+  // Reset selection when cluster changes
+  useEffect(() => {
+    const reports = hazardReports.filter(r => r.cluster === cluster.id).slice(1);
+    setSelectedComparisonId(reports.length > 0 ? reports[0].id : null);
+  }, [cluster.id]);
 
   useEffect(() => {
     const initialTimers: Record<string, number> = {};
@@ -281,17 +305,16 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
     return () => clearInterval(interval);
   }, [annotations]);
 
-  const sortedDuplicates = [...duplicateReports].sort((a, b) => {
-    if (sortBy === 'image') {
-      const aScore = a.duplicateScores?.semantic || 0;
-      const bScore = b.duplicateScores?.semantic || 0;
+  const filteredAndSorted = [...duplicateReports]
+    .filter(r => {
+      if (filterStatus === 'all') return true;
+      return getDuplicateStatus(r) === filterStatus;
+    })
+    .sort((a, b) => {
+      const aScore = a.duplicateScores?.overall || 0;
+      const bScore = b.duplicateScores?.overall || 0;
       return bScore - aScore;
-    } else {
-      const aScore = a.duplicateScores?.semantic || 0;
-      const bScore = b.duplicateScores?.semantic || 0;
-      return bScore - aScore;
-    }
-  });
+    });
 
   const handleAnnotate = useCallback((reportId: string, type: 'duplicate' | 'not_duplicate') => {
     if (type === 'not_duplicate') {
@@ -331,67 +354,91 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
     }
   };
 
+  const handlePrevCluster = () => {
+    if (currentClusterIndex > 0 && onNavigateCluster) {
+      onNavigateCluster(clusters[currentClusterIndex - 1]);
+    }
+  };
+  const handleNextCluster = () => {
+    if (currentClusterIndex < clusters.length - 1 && onNavigateCluster) {
+      onNavigateCluster(clusters[currentClusterIndex + 1]);
+    }
+  };
+
+  // Compact similar report item: image beside text
   const SimilarReportItem = ({ r }: { r: HazardReport }) => {
-    const semanticVal = r.duplicateScores ? Math.round(r.duplicateScores.semantic * 100) : 0;
+    const overallScore = r.duplicateScores ? Math.round(r.duplicateScores.overall * 100) : 0;
     const isSelected = selectedComparisonId === r.id;
     const annotation = annotations[r.id];
     const timer = timers[r.id] || 0;
     const timerProgress = (timer / AUTO_CONFIRM_DURATION) * 100;
+    const dupStatus = getDuplicateStatus(r);
+    const dupInfo = getDuplicateStatusInfo(dupStatus);
 
     return (
       <div
-        className={`p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/50'}`}
+        className={`p-2.5 rounded-lg border cursor-pointer transition-all ${isSelected ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/50'}`}
         onClick={() => setSelectedComparisonId(r.id)}
       >
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div>
-            <p className="text-sm font-semibold text-foreground">{r.id}</p>
-            <p className="text-xs text-muted-foreground">{r.tanggal} • {r.pelapor}</p>
+        <div className="flex gap-2.5">
+          {/* Thumbnail */}
+          <div className="w-16 h-16 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+            <ImageIcon className="w-5 h-5 text-muted-foreground/30" />
           </div>
-          <span className="text-lg font-bold text-primary">{semanticVal}%</span>
-        </div>
-
-        {(() => {
-          const dupStatus = getDuplicateStatus(r);
-          const dupInfo = getDuplicateStatusInfo(dupStatus);
-          return (
-            <div className="flex items-center gap-1.5 mb-2">
-              <Badge variant="outline" className={`${dupInfo.className} text-xs gap-1`}>
-                {dupInfo.icon && <dupInfo.icon className="w-3 h-3" />}
-                {dupInfo.label}
-              </Badge>
-              {dupInfo.sublabel && <span className="text-xs text-muted-foreground">({dupInfo.sublabel})</span>}
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <p className="text-xs font-semibold text-foreground truncate">{r.id}</p>
+              <span className="text-sm font-bold text-primary flex-shrink-0">{overallScore}%</span>
             </div>
-          );
-        })()}
-
-        <div className="aspect-[16/10] rounded-md bg-muted/50 flex items-center justify-center mb-2">
-          <ImageIcon className="w-10 h-10 text-muted-foreground/30" />
+            <p className="text-[11px] text-muted-foreground mb-1">{r.tanggal} • {r.pelapor}</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex">
+                    <Badge variant="outline" className={`${dupInfo.className} text-[10px] gap-0.5 py-0 px-1.5`}>
+                      {dupInfo.icon && <dupInfo.icon className="w-2.5 h-2.5" />}
+                      {dupInfo.label}
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-[220px]">
+                  {dupStatus === 'duplicate_by_system' ? (
+                    <p className="text-xs">Kedobel oleh sistem — similarity tinggi dan terkesan identik dengan metadata pelapor dan timestamp mirip/berdekatan</p>
+                  ) : dupStatus === 'duplicate' ? (
+                    <p className="text-xs">Similarity tinggi, teridentifikasi sebagai laporan duplikat</p>
+                  ) : (
+                    <p className="text-xs">Berpotensi duplikat, perlu review manual</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
+        <p className="text-[11px] text-muted-foreground line-clamp-1 mt-1.5">{r.deskripsiTemuan}</p>
 
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{r.deskripsiTemuan}</p>
-
+        {/* Timer / annotation */}
         {annotation ? (
-          <div className="mb-2">{getAnnotationBadge(r.id)}</div>
+          <div className="mt-2">{getAnnotationBadge(r.id)}</div>
         ) : (
-          <div className="mb-3">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-              <div className="flex items-center gap-1"><Clock className="w-3 h-3" /><span>Auto-confirm dalam:</span></div>
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
+              <div className="flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" /><span>Auto-confirm</span></div>
               <span className="font-mono">{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</span>
             </div>
-            <Progress value={timerProgress} className="h-1.5" />
+            <Progress value={timerProgress} className="h-1" />
           </div>
         )}
 
         {!annotation && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="flex-1 bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20 text-xs"
+          <div className="flex gap-1.5 mt-2">
+            <Button size="sm" variant="outline" className="flex-1 h-7 bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20 text-[10px]"
               onClick={(e) => { e.stopPropagation(); handleAnnotate(r.id, 'duplicate'); }}>
-              <CheckCircle2 className="w-3 h-3 mr-1" />Duplicate
+              <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />Duplicate
             </Button>
-            <Button size="sm" variant="outline" className="flex-1 bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20 text-xs"
+            <Button size="sm" variant="outline" className="flex-1 h-7 bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20 text-[10px]"
               onClick={(e) => { e.stopPropagation(); handleAnnotate(r.id, 'not_duplicate'); }}>
-              <XCircle className="w-3 h-3 mr-1" />Bukan Duplicate
+              <XCircle className="w-2.5 h-2.5 mr-0.5" />Bukan
             </Button>
           </div>
         )}
@@ -399,26 +446,72 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
     );
   };
 
+  const totalSimilarityScore = representativeReport?.duplicateScores ? Math.round((representativeReport.duplicateScores.overall) * 100) : 0;
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative w-full max-w-6xl h-full bg-card shadow-2xl border-l border-border flex flex-col animate-in slide-in-from-right duration-300">
-        {/* Header */}
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="flex items-center justify-between">
+        {/* Header with stats and navigation */}
+        <div className="p-3 border-b border-border bg-muted/30">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-purple-500" />
+              <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                <Brain className="w-4 h-4 text-purple-500" />
               </div>
               <div>
-                <h3 className="font-bold text-foreground text-lg">Semantic Review</h3>
-                <p className="text-sm text-muted-foreground">Mode Perbandingan Makna • {duplicateReports.length} laporan mirip</p>
+                <h3 className="font-bold text-foreground text-base">Semantic Review — {cluster.name}</h3>
+                <p className="text-xs text-muted-foreground">{cluster.id} • {clusterReports.length} laporan dalam cluster</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Cluster Navigation */}
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={currentClusterIndex <= 0} onClick={handlePrevCluster}>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">{currentClusterIndex + 1}/{clusters.length}</span>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={currentClusterIndex >= clusters.length - 1} onClick={handleNextCluster}>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs gap-1">
+              Total Similarity: {totalSimilarityScore}%
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              Total: {clusterReports.length}
+            </Badge>
+            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
+              Duplicate: {statusCounts.duplicate || 0}
+            </Badge>
+            <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+              Potential: {statusCounts.potential_duplicate || 0}
+            </Badge>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex">
+                    <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/30 text-xs gap-1 cursor-help">
+                      <RefreshCw className="w-3 h-3" />
+                      By System: {statusCounts.duplicate_by_system || 0}
+                      <Info className="w-3 h-3 ml-0.5" />
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[250px]">
+                  <p className="text-xs">Kedobel oleh sistem — similarity tinggi dan terkesan identik dengan metadata pelapor dan timestamp mirip/berdekatan</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -426,7 +519,7 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
         <div className="flex-1 flex overflow-hidden">
           {/* Left Column - Representative */}
           <ScrollArea className="w-1/3 border-r border-border">
-            <div className="p-4">
+            <div className="p-3">
               {representativeReport && (
                 <ReportCard r={representativeReport} isRepresentative title="Laporan Utama" showAnalysis={false} similarityBreakdown={generateSimilarityBreakdown()} />
               )}
@@ -435,13 +528,13 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
 
           {/* Middle Column - Comparison */}
           <ScrollArea className="w-1/3 border-r border-border bg-muted/5">
-            <div className="p-4">
+            <div className="p-3">
               {selectedComparison ? (
                 <ReportCard r={selectedComparison} title="Laporan Pembanding" showAnalysis similarityBreakdown={compSimilarityBreakdown} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText className="w-12 h-12 text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground">Pilih laporan dari daftar di kanan</p>
+                  <p className="text-muted-foreground text-sm">Pilih laporan dari daftar di kanan</p>
                 </div>
               )}
             </div>
@@ -449,22 +542,30 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
 
           {/* Right Column - Similar Reports List */}
           <ScrollArea className="w-1/3">
-            <div className="p-4">
-              <h4 className="font-semibold text-foreground text-sm mb-4">Laporan Mirip (berdasarkan makna)</h4>
+            <div className="p-3">
+              <h4 className="font-semibold text-foreground text-sm mb-3">Laporan Mirip ({filteredAndSorted.length})</h4>
 
-              <Select value={sortBy} onValueChange={(v: 'image' | 'text') => setSortBy(v)}>
-                <SelectTrigger className="w-full mb-4">
-                  <SelectValue placeholder="Urutkan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="image">Image Similarity</SelectItem>
-                  <SelectItem value="text">Text Similarity</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Single combined filter: sort by similarity + filter by status */}
+              <div className="flex gap-2 mb-3">
+                <Select value={filterStatus} onValueChange={(v: 'all' | DuplicateStatus) => setFilterStatus(v)}>
+                  <SelectTrigger className="flex-1 h-8 text-xs">
+                    <SelectValue placeholder="Filter status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="duplicate">Duplicate</SelectItem>
+                    <SelectItem value="potential_duplicate">Potential Duplicate</SelectItem>
+                    <SelectItem value="duplicate_by_system">Duplicate by System</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1 flex-shrink-0" disabled>
+                  <ArrowUpDown className="w-3 h-3" /> Similarity
+                </Button>
+              </div>
 
-              <div className="space-y-3">
-                {sortedDuplicates.length > 0 ? (
-                  sortedDuplicates.map(r => <SimilarReportItem key={r.id} r={r} />)
+              <div className="space-y-2">
+                {filteredAndSorted.length > 0 ? (
+                  filteredAndSorted.map(r => <SimilarReportItem key={r.id} r={r} />)
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -477,12 +578,12 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
+        <div className="p-3 border-t border-border bg-muted/30 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="w-3.5 h-3.5" />
             <span>Cluster dibuat oleh AI • {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
           </div>
-          <Button variant="outline" onClick={onClose}>Tutup</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>Tutup</Button>
         </div>
       </div>
 
@@ -494,7 +595,7 @@ const DuplicateClusterDetailPanel = ({ cluster, onClose, onViewReport }: Duplica
               <XCircle className="w-5 h-5 text-warning" />
               Anotasi: Bukan Duplicate
             </DialogTitle>
-            <DialogDescription>Berikan alasan mengapa laporan ini bukan duplicate. Laporan akan masuk ke antrian TBC/PSPP.gr labeling.</DialogDescription>
+            <DialogDescription>Berikan alasan mengapa laporan ini bukan duplicate.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

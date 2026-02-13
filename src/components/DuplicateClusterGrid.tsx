@@ -224,6 +224,8 @@ const DuplicateClusterGrid = ({ clusters, onViewReport }: DuplicateClusterGridPr
           cluster={viewingCluster}
           onClose={handleClosePanel}
           onViewReport={handleViewReport}
+          allClusters={clusters}
+          onNavigateCluster={(c) => setViewingCluster(c)}
         />
       )}
     </>
