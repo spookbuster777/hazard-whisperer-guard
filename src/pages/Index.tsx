@@ -4,9 +4,7 @@ import Header from "@/components/Header";
 import AppSidebar from "@/components/AppSidebar";
 import AIQueueTable from "@/components/AIQueueTable";
 import AIDuplicateQueueTable from "@/components/AIDuplicateQueueTable";
-import DuplicateClusterGrid from "@/components/DuplicateClusterGrid";
-import DuplicateClusterList from "@/components/DuplicateClusterList";
-import HazardDuplicateList from "@/components/HazardDuplicateList";
+import DuplicateSpreadsheet from "@/components/DuplicateSpreadsheet";
 import EvaluatorTable from "@/components/EvaluatorTable";
 import ReportDetail from "@/components/ReportDetail";
 import ReportListPanel from "@/components/ReportListPanel";
@@ -20,9 +18,7 @@ const Index = () => {
   const [currentReportIndex, setCurrentReportIndex] = useState(0);
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [mainTab, setMainTab] = useState("evaluasi");
-  const [duplicateSubTab, setDuplicateSubTab] = useState("cluster");
   const [queueSubTab, setQueueSubTab] = useState("ai-labeling");
-  const [pendingClusterId, setPendingClusterId] = useState<string | null>(null);
   
   // Filter only post-AI reports (AI_SELESAI)
   const evaluatorReports = useMemo(() => 
@@ -68,10 +64,8 @@ const Index = () => {
     }
   };
 
-  // Handle navigation from Hazard Duplicate to Duplicate Cluster
-  const handleNavigateToCluster = (clusterId: string) => {
-    setPendingClusterId(clusterId);
-    setDuplicateSubTab("cluster");
+  const handleViewDetailFromSpreadsheet = (report: HazardReport) => {
+    handleViewDetail(report);
   };
 
   return (
@@ -146,41 +140,8 @@ const Index = () => {
                   />
                 </TabsContent>
 
-                {/* Duplicate Hazard Tab Content */}
                 <TabsContent value="duplicate" className="space-y-4">
-                  {/* Sub-tabs for Duplicate Hazard */}
-                  <Tabs value={duplicateSubTab} onValueChange={setDuplicateSubTab}>
-                    <TabsList className="bg-card border border-border shadow-sm rounded-lg p-1">
-                      <TabsTrigger 
-                        value="cluster" 
-                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                      >
-                        <LayoutGrid className="w-4 h-4" />
-                        Duplicate Cluster
-                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                          {reportClusters.length}
-                        </span>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="hazard-duplicate" 
-                        className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-md px-4 py-2"
-                      >
-                        <Layers className="w-4 h-4" />
-                        Hazard Duplicate
-                        <span className="ml-1 px-2 py-0.5 bg-muted text-muted-foreground data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-full text-xs font-semibold">
-                          {reportClusters.length}
-                        </span>
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="cluster" className="mt-4">
-                      <DuplicateClusterGrid clusters={reportClusters} />
-                    </TabsContent>
-
-                    <TabsContent value="hazard-duplicate" className="mt-4">
-                      <HazardDuplicateList onNavigateToCluster={handleNavigateToCluster} />
-                    </TabsContent>
-                  </Tabs>
+                  <DuplicateSpreadsheet onViewReport={handleViewDetailFromSpreadsheet} />
                 </TabsContent>
 
                 {/* Queue Tab Content with Sub-tabs */}
